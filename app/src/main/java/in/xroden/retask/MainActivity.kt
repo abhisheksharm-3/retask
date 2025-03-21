@@ -19,6 +19,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import `in`.xroden.retask.data.model.Task
 import `in`.xroden.retask.ui.screens.MainScreen
 import `in`.xroden.retask.ui.theme.RetaskTheme
+import `in`.xroden.retask.ui.viewmodel.TaskViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,46 +32,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    TaskApp()
+                    val viewModel: TaskViewModel = viewModel()
+                    MainScreen(viewModel = viewModel)
                 }
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TaskApp() {
-    // Sample tasks for testing
-    val tasks = listOf(
-        Task(
-            id = "1",
-            title = "Coffee with Mel",
-            dueDate = System.currentTimeMillis() - 30 * 60 * 1000, // 30 minutes ago
-            colorHex = "#F6D8CE" // Peach color
-        ),
-        Task(
-            id = "2",
-            title = "Water plants",
-            dueDate = System.currentTimeMillis() - 20 * 60 * 1000, // 20 minutes ago
-            colorHex = "#D5F5E3" // Mint green
-        ),
-        Task(
-            id = "3",
-            title = "Get to the airport!",
-            dueDate = System.currentTimeMillis(), // Now
-            colorHex = "#FADBD8" // Light pink
-        ),
-        Task(
-            id = "4",
-            title = "Go to the gym",
-            dueDate = System.currentTimeMillis() + 10 * 60 * 1000, // 10 minutes from now
-            colorHex = "#D6EAF8" // Light blue
-        )
-    )
-    MainScreen(
-        tasks = tasks,
-        onCompleteTask = { /* Handle complete task */ },
-        onSnoozeTask = { /* Handle snooze task */ }
-    )
 }

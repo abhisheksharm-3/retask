@@ -1,11 +1,14 @@
 package `in`.xroden.retask.data.model
 import androidx.compose.ui.graphics.Color
 import androidx.core.graphics.toColorInt
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
+@Entity(tableName = "tasks")
 data class Task(
-    val id: String,
+    @PrimaryKey val id: String,
     val title: String,
-    val dueDate: Long, // Timestamp
+    val dueDate: Long,
     val colorHex: String = "#FFFFD6" // Default light yellow
 ) {
     fun getDueText(): String {
@@ -15,7 +18,7 @@ data class Task(
         return when {
             diffMinutes < 0 -> "Due in ${-diffMinutes} minutes"
             diffMinutes == 0L -> "Due now"
-            else -> "Due $diffMinutes minutes ago"
+            else -> "Due ${diffMinutes} minutes ago"
         }
     }
 
