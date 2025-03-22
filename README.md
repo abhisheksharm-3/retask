@@ -2,7 +2,7 @@
 
 A minimal, no-nonsense task manager for Android.
 
-[![CI Pipeline](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yml/badge.svg)](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yml)
+[![CI Pipeline](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml/badge.svg)](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml)
 
 <p align="center">
   <img src="/images/logo.png" alt="Retasк logo" />
