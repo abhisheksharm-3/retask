@@ -29,16 +29,32 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-#      - name: Run Tests
-#        run: ./gradlew test
-#
-#      - name: Run Compose Tests (if any)
-#        run: ./gradlew composeTest
+      # Decode the base64 encoded keystore file
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
 
+      # Build the release APK with signing configuration
+      - name: Build Release APK
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=app/keystore.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+      # Upload the signed release APK as an artifact
+      - name: Upload Release APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: retask-release
+          path: app/build/outputs/apk/release/app-release.apk
+
+      # Keep the debug build for testing purposes
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Upload APK to Artifacts
+      - name: Upload Debug APK to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
@@ -52,12 +68,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download APK from build
+      # Download the signed release APK
+      - name: Download Release APK from build
         uses: actions/download-artifact@v4
         with:
-          name: app-debug
+          name: retask-release
           path: artifacts
 
+      # Extract version from commit message
       - name: Extract version from commit message
         id: extract_version
         run: |
@@ -68,6 +86,13 @@ jobs:
             echo "version=1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
           fi
 
+      # Rename the APK to include the version
+      - name: Rename APK
+        run: |
+          mkdir -p renamed
+          cp artifacts/app-release.apk renamed/retask-v${{ steps.extract_version.outputs.version }}.apk
+
+      # Create GitHub release with the renamed APK
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -76,6 +101,6 @@ jobs:
           name: Release v${{ steps.extract_version.outputs.version }}
           draft: false
           prerelease: false
-          files: artifacts/app-debug.apk
+          files: renamed/retask-v${{ steps.extract_version.outputs.version }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
