@@ -26,34 +26,65 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Build the debug APK first (no signing needed)
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
+      # Decode the base64 encoded keystore file in multiple locations
+      - name: Decode Keystore
+        run: |
+          # Create directories
+          mkdir -p app/app
+          mkdir -p app
+          
+          # Place the keystore in multiple locations
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
+          
+          # Verify creation
+          ls -la app/app/keystore.jks || echo "app/app/keystore.jks not found"
+          ls -la app/keystore.jks || echo "app/keystore.jks not found"
 
-      - name: Upload Debug APK to Artifacts
+      # Build with both debug and release
+      - name: Build APKs
+        run: |
+          ./gradlew assembleDebug
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=app/keystore.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+      # Search for any APK files that were generated
+      - name: Find APK files
+        run: |
+          echo "Searching for all APK files in the project..."
+          find . -name "*.apk" | tee apk_files.txt
+          
+          if [ -s apk_files.txt ]; then
+            echo "APK files found!"
+            # Create a directory to collect all APKs
+            mkdir -p all_apks
+            # Copy all found APKs to the collection directory
+            while IFS= read -r file; do
+              cp "$file" all_apks/
+            done < apk_files.txt
+          else
+            echo "No APK files found in the project."
+            exit 1
+          fi
+
+      # Upload all found APKs as artifacts
+      - name: Upload All APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-apks
+          path: all_apks/
+          if-no-files-found: error
+
+      # Also upload debug APK specifically if found
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-
-      # Decode the base64 encoded keystore file
-      # Using the exact path that's hardcoded in the Gradle config
-      - name: Decode Keystore
-        run: |
-          mkdir -p app/app
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
-
-      # Build the release APK with signing configuration
-      # No need to specify the path since it's hardcoded in the build config
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
-
-      # Upload the signed release APK as an artifact
-      - name: Upload Release APK to Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: retask-release
-          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
 
   release:
     needs: build
@@ -63,12 +94,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Download the signed release APK
-      - name: Download Release APK from build
+      # Download all APKs
+      - name: Download APKs from build
         uses: actions/download-artifact@v4
         with:
-          name: retask-release
+          name: all-apks
           path: artifacts
+
+      # List downloaded files
+      - name: List downloaded artifacts
+        run: |
+          ls -la artifacts/
+          
+          # Find the release APK or use the first APK if can't determine
+          RELEASE_APK=$(find artifacts/ -name "*release*.apk" | head -1)
+          if [ -z "$RELEASE_APK" ]; then
+            RELEASE_APK=$(find artifacts/ -name "*.apk" | head -1)
+          fi
+          
+          if [ -z "$RELEASE_APK" ]; then
+            echo "No APK found in artifacts!"
+            exit 1
+          fi
+          
+          echo "Using APK: $RELEASE_APK"
+          echo "RELEASE_APK=$RELEASE_APK" >> $GITHUB_ENV
 
       # Extract version from commit message
       - name: Extract version from commit message
@@ -85,7 +135,7 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p renamed
-          cp artifacts/app-release.apk renamed/retask-v${{ steps.extract_version.outputs.version }}.apk
+          cp "$RELEASE_APK" "renamed/retask-v${{ steps.extract_version.outputs.version }}.apk"
 
       # Create GitHub release with the renamed APK
       - name: Create Release
