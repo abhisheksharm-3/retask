@@ -37,19 +37,16 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
       # Decode the base64 encoded keystore file
+      # Using the exact path that's hardcoded in the Gradle config
       - name: Decode Keystore
         run: |
-          mkdir -p app
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
+          mkdir -p app/app
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
 
       # Build the release APK with signing configuration
+      # No need to specify the path since it's hardcoded in the build config
       - name: Build Release APK
-        run: |
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=app/keystore.jks \
-            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
 
       # Upload the signed release APK as an artifact
       - name: Upload Release APK to Artifacts
