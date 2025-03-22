@@ -45,13 +45,34 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.createTask(title, dueMinutes, colorHex)
     }
 
+    // New method to edit an existing task
+    fun editTask(
+        task: Task,
+        title: String,
+        dueMinutes: Int,
+        colorHex: String
+    ) = viewModelScope.launch {
+        // Calculate new due date based on current time plus specified minutes
+        val now = System.currentTimeMillis()
+        val newDueDate = now + (dueMinutes * 60 * 1000)
+
+        // Create updated task with existing ID but new values
+        val updatedTask = task.copy(
+            title = title,
+            dueDate = newDueDate,
+            colorHex = colorHex
+        )
+
+        repository.updateTask(updatedTask)
+    }
+
     // Add sample data for testing
     fun addSampleTasks() = viewModelScope.launch {
         val colors = listOf("#F6D8CE", "#D5F5E3", "#FADBD8", "#D6EAF8")
 
         repository.createTask(
             "Coffee with Mel",
-            -30, // 30 minuteqq ago
+            -30, // 30 minutes ago
             colors[0]
         )
 

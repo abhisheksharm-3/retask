@@ -10,6 +10,11 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import `in`.xroden.retask.R
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -33,6 +38,66 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+// Set up Google Fonts Provider
+private val provider = GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
+
+private val fontName = GoogleFont("Montserrat")
+
+private val fontFamily = FontFamily(
+    Font(
+        googleFont = fontName,
+        fontProvider = provider,
+        weight = FontWeight.Light
+    ),
+    Font(
+        googleFont = fontName,
+        fontProvider = provider,
+        weight = FontWeight.Normal
+    ),
+    Font(
+        googleFont = fontName,
+        fontProvider = provider,
+        weight = FontWeight.Medium
+    ),
+    Font(
+        googleFont = fontName,
+        fontProvider = provider,
+        weight = FontWeight.SemiBold
+    ),
+    Font(
+        googleFont = fontName,
+        fontProvider = provider,
+        weight = FontWeight.Bold
+    )
+)
+
+// Create a custom Typography with our font family
+private val CustomTypography = Typography.copy(
+    displayLarge = Typography.displayLarge.copy(fontFamily = fontFamily),
+    displayMedium = Typography.displayMedium.copy(fontFamily = fontFamily),
+    displaySmall = Typography.displaySmall.copy(fontFamily = fontFamily),
+
+    headlineLarge = Typography.headlineLarge.copy(fontFamily = fontFamily),
+    headlineMedium = Typography.headlineMedium.copy(fontFamily = fontFamily),
+    headlineSmall = Typography.headlineSmall.copy(fontFamily = fontFamily),
+
+    titleLarge = Typography.titleLarge.copy(fontFamily = fontFamily),
+    titleMedium = Typography.titleMedium.copy(fontFamily = fontFamily),
+    titleSmall = Typography.titleSmall.copy(fontFamily = fontFamily),
+
+    bodyLarge = Typography.bodyLarge.copy(fontFamily = fontFamily),
+    bodyMedium = Typography.bodyMedium.copy(fontFamily = fontFamily),
+    bodySmall = Typography.bodySmall.copy(fontFamily = fontFamily),
+
+    labelLarge = Typography.labelLarge.copy(fontFamily = fontFamily),
+    labelMedium = Typography.labelMedium.copy(fontFamily = fontFamily),
+    labelSmall = Typography.labelSmall.copy(fontFamily = fontFamily)
+)
+
 @Composable
 fun RetaskTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -52,7 +117,7 @@ fun RetaskTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = CustomTypography,
         content = content
     )
 }

@@ -1,6 +1,5 @@
 package `in`.xroden.retask.ui.screens
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +16,10 @@ import `in`.xroden.retask.ui.components.TaskCard
 import `in`.xroden.retask.ui.components.TaskDrawer
 import `in`.xroden.retask.ui.viewmodel.TaskViewModel
 import androidx.core.graphics.toColorInt
+import `in`.xroden.retask.ui.components.AddTaskDialog
+import `in`.xroden.retask.ui.components.EditTaskDialog
+import `in`.xroden.retask.ui.components.NoTasks
+import `in`.xroden.retask.data.model.Task
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,83 +29,85 @@ fun MainScreen(
 ) {
     val tasks by viewModel.allTasks.collectAsStateWithLifecycle()
 
-    // If tasks are empty, show a button to add sample tasks
-    if (tasks.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Button(
-                onClick = { viewModel.addSampleTasks() },
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                Text("Add Sample Tasks")
-            }
-        }
-        return
-    }
-
-    // Sort tasks by due date to show the most urgent one first
-    val sortedTasks = remember(tasks) {
-        tasks.sortedBy { it.dueDate }
-    }
-
-    // Current task is the first one (most urgent)
-    val currentTask = sortedTasks.firstOrNull() ?: return
-
-    // Other tasks for the drawer
-    val otherTasks = sortedTasks.drop(1)
-
-    // State for bottom sheet
-    val sheetState = rememberBottomSheetScaffoldState()
-    var selectedTask by remember { mutableStateOf(currentTask) }
-
     // Add dialog state
     var showAddTaskDialog by remember { mutableStateOf(false) }
+    var showEditTaskDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<Task?>(null) }
 
-    // If the selected task is no longer in the list, reset to the first task
-    LaunchedEffect(tasks) {
-        if (!tasks.contains(selectedTask)) {
-            selectedTask = tasks.firstOrNull() ?: return@LaunchedEffect
+    // If tasks are empty, show the improved empty state UI
+    if (tasks.isEmpty()) {
+        NoTasks(
+            onAddSampleTasks = { viewModel.addSampleTasks() },
+            onAddNewTask = { showAddTaskDialog = true },
+            modifier = modifier.fillMaxSize()
+        )
+    } else {
+        // Sort tasks by due date to show the most urgent one first
+        val sortedTasks = remember(tasks) {
+            tasks.sortedBy { it.dueDate }
         }
-    }
 
-    // Correctly using Box and BottomSheetScaffold
-    Box(modifier = Modifier.fillMaxSize()) {
-        BottomSheetScaffold(
-            scaffoldState = sheetState,
-            sheetContent = {
-                TaskDrawer(
-                    tasks = otherTasks,
-                    onTaskClick = { task ->
-                        selectedTask = task
-                    },
-                    modifier = Modifier.fillMaxWidth()
+        // Current task is the first one (most urgent)
+        val currentTask = sortedTasks.firstOrNull() ?: return
+
+        // Other tasks for the drawer
+        val otherTasks = sortedTasks.drop(1)
+
+        // State for bottom sheet
+        val sheetState = rememberBottomSheetScaffoldState()
+        var selectedTask by remember { mutableStateOf(currentTask) }
+
+        // If the selected task is no longer in the list, reset to the first task
+        LaunchedEffect(tasks) {
+            if (!tasks.contains(selectedTask)) {
+                selectedTask = tasks.firstOrNull() ?: return@LaunchedEffect
+            }
+        }
+
+        // Correctly using Box and BottomSheetScaffold
+        Box(modifier = Modifier.fillMaxSize()) {
+            BottomSheetScaffold(
+                scaffoldState = sheetState,
+                sheetContent = {
+                    TaskDrawer(
+                        tasks = otherTasks,
+                        onTaskClick = { task ->
+                            selectedTask = task
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                sheetPeekHeight = 72.dp
+            ) { paddingValues ->
+                TaskCard(
+                    task = selectedTask,
+                    totalTasks = tasks.size,
+                    onCompleteClick = { viewModel.completeTask(selectedTask) },
+                    onSnoozeClick = { viewModel.snoozeTask(selectedTask) },
+                    modifier = Modifier.padding(paddingValues),
+                    onEditClick = {
+                        taskToEdit = selectedTask
+                        showEditTaskDialog = true
+                    }
                 )
-            },
-            sheetPeekHeight = 72.dp
-        ) { paddingValues ->
-            TaskCard(
-                task = selectedTask,
-                onCompleteClick = { viewModel.completeTask(selectedTask) },
-                onSnoozeClick = { viewModel.snoozeTask(selectedTask) },
-                modifier = Modifier.padding(paddingValues)
-            )
-        }
+            }
 
-        // FloatingActionButton positioned in the Box
-        FloatingActionButton(
-            onClick = { showAddTaskDialog = true },
-            containerColor = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add Task"
-            )
+            // FloatingActionButton positioned in the Box
+            FloatingActionButton(
+                onClick = { showAddTaskDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Task"
+                )
+            }
         }
     }
 
-    // Add task dialog
     if (showAddTaskDialog) {
         AddTaskDialog(
             onDismiss = { showAddTaskDialog = false },
@@ -112,79 +117,20 @@ fun MainScreen(
             }
         )
     }
-}
 
-@Composable
-fun AddTaskDialog(
-    onDismiss: () -> Unit,
-    onAddTask: (String, Int, String) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var dueMinutes by remember { mutableStateOf("15") }
-    var selectedColor by remember { mutableStateOf("#F6D8CE") }
-    val colors = listOf("#F6D8CE", "#D5F5E3", "#FADBD8", "#D6EAF8")
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add New Task") },
-        text = {
-            Column {
-                TextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Task Title") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                TextField(
-                    value = dueMinutes,
-                    onValueChange = { dueMinutes = it },
-                    label = { Text("Due in minutes") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Select Color:")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    colors.forEach { color ->
-                        Surface(
-                            color = Color(color.toColorInt()),
-                            shape = MaterialTheme.shapes.small,
-                            border = BorderStroke(
-                                width = 2.dp,
-                                color = if (color == selectedColor)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    Color.Transparent
-                            ),
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clickable { selectedColor = color }
-                        ) {}
-                    }
-                }
+    // Edit task dialog
+    if (showEditTaskDialog && taskToEdit != null) {
+        EditTaskDialog(
+            task = taskToEdit!!,
+            onDismiss = {
+                showEditTaskDialog = false
+                taskToEdit = null
+            },
+            onUpdateTask = { task, title, dueMinutes, colorHex ->
+                viewModel.editTask(task, title, dueMinutes, colorHex)
+                showEditTaskDialog = false
+                taskToEdit = null
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onAddTask(
-                        title,
-                        dueMinutes.toIntOrNull() ?: 15,
-                        selectedColor
-                    )
-                },
-                enabled = title.isNotBlank()
-            ) {
-                Text("Add Task")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
+        )
+    }
 }
