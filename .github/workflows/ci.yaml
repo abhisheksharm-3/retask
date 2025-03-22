@@ -26,14 +26,21 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build
+      # Build the debug APK first (no signing needed)
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK to Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
 
       # Decode the base64 encoded keystore file
       - name: Decode Keystore
         run: |
-          mkdir -p app/app
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
+          mkdir -p app
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
 
       # Build the release APK with signing configuration
       - name: Build Release APK
@@ -50,16 +57,6 @@ jobs:
         with:
           name: retask-release
           path: app/build/outputs/apk/release/app-release.apk
-
-      # Keep the debug build for testing purposes
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload Debug APK to Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
 
   release:
     needs: build
