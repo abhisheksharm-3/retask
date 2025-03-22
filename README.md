@@ -76,7 +76,7 @@ This will automatically:
 3. Create a GitHub release tagged as v1.2.0
 4. Attach the APK to the release
 
-The pipeline configuration can be found in `.github/workflows/android-ci.yml`.
+The pipeline configuration can be found in `.github/workflows/ci.yaml`.
 
 ## Contributing
 
