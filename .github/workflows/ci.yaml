@@ -32,7 +32,8 @@ jobs:
       # Decode the base64 encoded keystore file
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
+          mkdir -p app/app
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
 
       # Build the release APK with signing configuration
       - name: Build Release APK
