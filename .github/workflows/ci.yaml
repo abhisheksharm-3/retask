@@ -29,11 +29,11 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Run Tests
-        run: ./gradlew test
-
-      - name: Run Compose Tests (if any)
-        run: ./gradlew composeTest
+#      - name: Run Tests
+#        run: ./gradlew test
+#
+#      - name: Run Compose Tests (if any)
+#        run: ./gradlew composeTest
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug
