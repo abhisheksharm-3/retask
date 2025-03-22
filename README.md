@@ -5,7 +5,7 @@ A minimal, no-nonsense task manager for Android.
 [![CI Pipeline](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yml/badge.svg)](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="/app/src/main/res/images/logo.png" alt="Retasк logo" />
+  <img src="/images/logo.png" alt="Retasк logo" />
 </p>
 
 ## About
@@ -16,8 +16,7 @@ Retasк is a clean, distraction-free task manager that focuses on what matters: 
 
 - **Minimal Design**: Clean interface without unnecessary distractions
 - **Quick Task Entry**: Add tasks in seconds
-- **Simple Organization**: Basic categorization without overhead
-- **Efficient Task Management**: Complete, delete, and prioritize with ease
+- **Efficient Task Management**: Complete, delete, and edit with ease
 - **No Account Required**: Works completely offline, respecting your privacy
 - **Lightweight**: Small app size with minimal resource usage
 
@@ -29,7 +28,7 @@ Retasк is a clean, distraction-free task manager that focuses on what matters: 
 
 ### Requirements
 
-- Android 10.0 (Nougat) or higher
+- Android 10.0 (Oreo) or higher
 
 ## Development
 
