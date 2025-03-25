@@ -1,7 +1,14 @@
 package `in`.xroden.retask.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,14 +20,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.MoreTime
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledIconButton
@@ -29,22 +36,33 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import `in`.xroden.retask.data.model.Task
+import kotlinx.coroutines.delay
 
 @Composable
 fun TaskCard(
@@ -55,107 +73,243 @@ fun TaskCard(
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+
+    // State for card appearance animation
+    var isVisible by remember { mutableStateOf(false) }
+
+    // Animate entrance for a more delightful experience
+    LaunchedEffect(key1 = Unit) {
+        delay(150)
+        isVisible = true
+    }
+
+    // Animate color changes for smooth transitions
     val backgroundColor by animateColorAsState(
         targetValue = task.getBackgroundColor(),
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "backgroundColor"
     )
 
-    // Calculate a contrasting text color based on background brightness
-    val isBackgroundDark = calculateBrightness(backgroundColor) < 0.5f
-    val textColor = if (isBackgroundDark) Color.White else Color.Black
-    val secondaryTextColor = if (isBackgroundDark)
-        Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f)
-
-    ElevatedCard(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(8.dp),
-        shape = RoundedCornerShape(28.dp),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 4.dp
+    // Add subtle elevation animation with springy effect
+    val cardElevation by animateFloatAsState(
+        targetValue = if (isVisible) 4f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
         ),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = backgroundColor
-        )
+        label = "cardElevation"
+    )
+
+    // Scale animation for entrance
+    val cardScale by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0.92f,
+        animationSpec = tween(
+            durationMillis = 350,
+            easing = FastOutSlowInEasing
+        ),
+        label = "cardScale"
+    )
+
+    // Calculate optimal text color based on background luminance
+    val luminance = backgroundColor.luminance()
+    val textColor = if (luminance < 0.5f) Color.White else Color.Black
+    val secondaryTextColor = if (luminance < 0.5f)
+        Color.White.copy(alpha = 0.75f) else Color.Black.copy(alpha = 0.65f)
+
+    // Determine if task is urgent (due soon)
+    val now = System.currentTimeMillis()
+    val timeRemaining = task.dueDate - now
+    val isUrgent = timeRemaining in 1..900000 // Due within 15 minutes
+
+    // Calculate task gradient based on urgency
+    val gradientColors = when {
+        isUrgent -> {
+            listOf(
+                backgroundColor,
+                backgroundColor.copy(red = minOf(1f, backgroundColor.red + 0.1f))
+            )
+        }
+
+        else -> {
+            listOf(
+                backgroundColor,
+                backgroundColor.copy(alpha = 0.95f)
+            )
+        }
+    }
+
+    // Properly handle singular/plural for task count
+    val taskCountText = if (totalTasks == 1) "1 Task Remaining" else "$totalTasks Tasks Remaining"
+
+    // Create a semantic description for the entire card including urgency
+    val urgencyText = if (isUrgent) ", urgent" else ""
+    val cardDescription =
+        "Task: ${task.title}, due ${task.getDueText()}$urgencyText, $taskCountText"
+
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = fadeIn(animationSpec = tween(durationMillis = 400)),
+        exit = fadeOut(animationSpec = tween(durationMillis = 200))
     ) {
-        Box(
-            modifier = Modifier
+        ElevatedCard(
+            modifier = modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            backgroundColor,
-                            backgroundColor,
+                .padding(12.dp)
+                .scale(cardScale)
+                .shadow(
+                    elevation = cardElevation.dp,
+                    shape = RoundedCornerShape(28.dp),
+                    spotColor = backgroundColor.copy(alpha = 0.25f)
+                )
+                .semantics {
+                    contentDescription = cardDescription
+                },
+            shape = RoundedCornerShape(28.dp),
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = cardElevation.dp,
+                pressedElevation = 2.dp
+            ),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = backgroundColor
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = gradientColors
                         )
                     )
-                )
-                .padding(24.dp)
-        ) {
-            // Task counter at the top
-            Text(
-                text = "$totalTasks Task Remaining",
-                style = MaterialTheme.typography.labelLarge,
-                color = secondaryTextColor,
-                modifier = Modifier.align(Alignment.TopStart)
-            )
-
-            // Main content in the center
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(24.dp)
             ) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = textColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                // Task counter and urgency indicator
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0x1A000000).copy(alpha = 0.2f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isUrgent) {
+                        Icon(
+                            imageVector = Icons.Rounded.Timer,
+                            contentDescription = null,
+                            tint = if (luminance < 0.5f) Color.White else Color.Black,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .alpha(0.9f)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = taskCountText,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.2.sp
+                        ),
+                        color = secondaryTextColor
+                    )
+                }
 
-                Text(
-                    text = task.getDueText(),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = textColor,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+                // Main content in the center with improved typography
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth(0.9f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp,
+                            lineHeight = 40.sp
+                        ),
+                        color = textColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
 
-            // Action buttons at the bottom
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ActionButton(
-                    icon = Icons.Rounded.Check,
-                    description = "Complete",
-                    onClick = onCompleteClick,
-                    tint = MaterialTheme.colorScheme.primary,
-                    textColor = textColor
-                )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                ActionButton(
-                    icon = Icons.Rounded.Edit,
-                    description = "Edit",
-                    onClick = onEditClick,
-                    tint = MaterialTheme.colorScheme.secondary,
-                    textColor = textColor
-                )
+                    // Due time with adaptive styling based on urgency
+                    Surface(
+                        color = if (isUrgent)
+                            Color(0x22FF0000).copy(alpha = if (luminance < 0.5f) 0.3f else 0.1f)
+                        else
+                            Color.Transparent,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = task.getDueText(),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = if (isUrgent) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            color = if (luminance < 0.5f) Color.White.copy(alpha = 0.9f) else Color.Black.copy(
+                                alpha = 0.8f
+                            ),
+                            modifier = Modifier.padding(
+                                horizontal = if (isUrgent) 12.dp else 6.dp,
+                                vertical = if (isUrgent) 4.dp else 2.dp
+                            )
+                        )
+                    }
+                }
 
-                ActionButton(
-                    icon = Icons.Rounded.MoreTime,
-                    description = "Snooze",
-                    onClick = onSnoozeClick,
-                    tint = MaterialTheme.colorScheme.tertiary,
-                    textColor = textColor
-                )
+                // Action buttons at the bottom with improved spacing and visual design
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ActionButton(
+                        icon = Icons.Rounded.Check,
+                        description = "Complete",
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onCompleteClick()
+                        },
+                        tint = MaterialTheme.colorScheme.primary,
+                        textColor = textColor,
+                        isPrimary = true,
+                        isUrgent = isUrgent
+                    )
+
+                    ActionButton(
+                        icon = Icons.Rounded.Edit,
+                        description = "Edit",
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onEditClick()
+                        },
+                        tint = MaterialTheme.colorScheme.secondary,
+                        textColor = textColor,
+                        isPrimary = false
+                    )
+
+                    ActionButton(
+                        icon = Icons.Rounded.MoreTime,
+                        description = "Snooze",
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSnoozeClick()
+                        },
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        textColor = textColor,
+                        isPrimary = false,
+                        isUrgent = isUrgent && timeRemaining < 300000 // Extra emphasis if < 5 min
+                    )
+                }
             }
         }
     }
@@ -163,43 +317,75 @@ fun TaskCard(
 
 @Composable
 fun ActionButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     description: String,
     onClick: () -> Unit,
     tint: Color,
-    textColor: Color
+    textColor: Color,
+    isPrimary: Boolean = false,
+    isUrgent: Boolean = false
 ) {
+    // Scale animation for primary/urgent buttons
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isPrimary && isUrgent) 1.08f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "buttonScale"
+    )
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .scale(buttonScale)
+            .semantics {
+                contentDescription = "$description task"
+            }
     ) {
         FilledIconButton(
             onClick = onClick,
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier
+                .size(if (isPrimary) 52.dp else 44.dp)
+                .shadow(
+                    elevation = if (isPrimary) 6.dp else 4.dp,
+                    shape = CircleShape,
+                    spotColor = if (isUrgent && (isPrimary || description == "Snooze"))
+                        tint.copy(alpha = 0.4f)
+                    else
+                        tint.copy(alpha = 0.2f)
+                ),
             shape = CircleShape,
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = tint
+                containerColor = when {
+                    isPrimary -> tint
+                    isUrgent && description == "Snooze" ->
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f)
+
+                    else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                },
+                contentColor = when {
+                    isPrimary -> Color.White
+                    isUrgent && description == "Snooze" -> MaterialTheme.colorScheme.error
+                    else -> tint
+                }
             )
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = description,
-                modifier = Modifier.size(20.dp)
+                contentDescription = null,
+                modifier = Modifier.size(if (isPrimary) 24.dp else 20.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = description,
-            style = MaterialTheme.typography.labelMedium,
-            color = textColor,
-            fontWeight = FontWeight.Medium
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = if (isPrimary || isUrgent) FontWeight.SemiBold else FontWeight.Medium
+            ),
+            color = textColor.copy(alpha = if (isPrimary || isUrgent) 1f else 0.9f)
         )
     }
-}
-
-// Function to calculate color brightness (0-1)
-fun calculateBrightness(color: Color): Float {
-    return (0.299f * color.red + 0.587f * color.green + 0.114f * color.blue)
 }
