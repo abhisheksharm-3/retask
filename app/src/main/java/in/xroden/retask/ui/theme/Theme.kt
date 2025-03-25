@@ -93,104 +93,102 @@ private val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-// Refined font selection - Montserrat for headings and Work Sans for body
-private val montserrat = GoogleFont("Montserrat")
-private val workSans = GoogleFont("Work Sans")
+// Plus Jakarta Sans for the entire application - a premium, versatile font
+private val jakartaSans = GoogleFont("Plus Jakarta Sans")
 
-private val montserratFamily = FontFamily(
-    Font(googleFont = montserrat, fontProvider = provider, weight = FontWeight.Light),
-    Font(googleFont = montserrat, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = montserrat, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = montserrat, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = montserrat, fontProvider = provider, weight = FontWeight.Bold)
+private val fontFamily = FontFamily(
+    Font(googleFont = jakartaSans, fontProvider = provider, weight = FontWeight.Light),
+    Font(googleFont = jakartaSans, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = jakartaSans, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = jakartaSans, fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = jakartaSans, fontProvider = provider, weight = FontWeight.Bold)
 )
 
-private val workSansFamily = FontFamily(
-    Font(googleFont = workSans, fontProvider = provider, weight = FontWeight.Light),
-    Font(googleFont = workSans, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = workSans, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = workSans, fontProvider = provider, weight = FontWeight.SemiBold)
-)
-
-// Create a custom Typography with our font families
+// Create a custom Typography with our font family
 private val CustomTypography = Typography.copy(
     // Display styles
     displayLarge = Typography.displayLarge.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.2).sp
     ),
     displayMedium = Typography.displayMedium.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.15).sp
     ),
     displaySmall = Typography.displaySmall.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.1).sp
     ),
 
     // Headline styles
     headlineLarge = Typography.headlineLarge.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = (-0.1).sp
     ),
     headlineMedium = Typography.headlineMedium.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = 0.sp
     ),
     headlineSmall = Typography.headlineSmall.copy(
-        fontFamily = montserratFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.SemiBold,
-        letterSpacing = (-0.25).sp
+        letterSpacing = 0.sp
     ),
 
     // Title styles
     titleLarge = Typography.titleLarge.copy(
-        fontFamily = montserratFamily,
-        fontWeight = FontWeight.SemiBold
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.sp
     ),
     titleMedium = Typography.titleMedium.copy(
-        fontFamily = montserratFamily,
-        fontWeight = FontWeight.Medium
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.sp
     ),
     titleSmall = Typography.titleSmall.copy(
-        fontFamily = montserratFamily,
-        fontWeight = FontWeight.Medium
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.sp
     ),
 
-    // Body styles - using Work Sans for better readability
+    // Body styles
     bodyLarge = Typography.bodyLarge.copy(
-        fontFamily = workSansFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.sp
     ),
     bodyMedium = Typography.bodyMedium.copy(
-        fontFamily = workSansFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.sp
     ),
     bodySmall = Typography.bodySmall.copy(
-        fontFamily = workSansFamily,
+        fontFamily = fontFamily,
         fontWeight = FontWeight.Normal,
         letterSpacing = 0.sp
     ),
 
     // Label styles
     labelLarge = Typography.labelLarge.copy(
-        fontFamily = workSansFamily,
-        fontWeight = FontWeight.Medium
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.sp
     ),
     labelMedium = Typography.labelMedium.copy(
-        fontFamily = workSansFamily,
-        fontWeight = FontWeight.Medium
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.sp
     ),
     labelSmall = Typography.labelSmall.copy(
-        fontFamily = workSansFamily,
-        fontWeight = FontWeight.Medium
+        fontFamily = fontFamily,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.sp
     )
 )
 

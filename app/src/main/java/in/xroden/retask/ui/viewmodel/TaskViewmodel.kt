@@ -11,7 +11,6 @@ import `in`.xroden.retask.data.repository.TaskRepository
 import `in`.xroden.retask.data.model.Task
 import `in`.xroden.retask.data.database.TaskDatabase
 
-
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: TaskRepository
     val allTasks: StateFlow<List<Task>>
@@ -45,7 +44,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         repository.createTask(title, dueMinutes, colorHex)
     }
 
-    // New method to edit an existing task
+    // Method to edit an existing task
     fun editTask(
         task: Task,
         title: String,
