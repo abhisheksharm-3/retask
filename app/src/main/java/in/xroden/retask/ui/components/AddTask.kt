@@ -8,7 +8,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,8 +22,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -31,17 +31,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ColorLens
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -100,11 +100,33 @@ fun AddTaskDialog(
     var isCustomTimeMode by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf("#FFD6D6") }
     var isColorPanelExpanded by remember { mutableStateOf(false) }
+    var sliderDragging by remember { mutableStateOf(false) }
+    var lastDueMinutesValue by remember { mutableIntStateOf(15) }
+
     val scrollState = rememberScrollState()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
     val titleFocusRequester = remember { FocusRequester() }
+
+    // Track whether time value has changed significantly to trigger haptic feedback
+    val significantTimeChange = remember(dueMinutes, lastDueMinutesValue) {
+        val change = kotlin.math.abs(dueMinutes - lastDueMinutesValue)
+        val threshold = when {
+            lastDueMinutesValue < 60 -> 5  // 5 min increments for < 1h
+            lastDueMinutesValue < 120 -> 15 // 15 min increments for 1-2h
+            else -> 30 // 30 min increments for > 2h
+        }
+        change >= threshold
+    }
+
+    // If time changes significantly while dragging, provide haptic feedback and update lastValue
+    LaunchedEffect(significantTimeChange, sliderDragging) {
+        if (significantTimeChange && sliderDragging) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            lastDueMinutesValue = dueMinutes
+        }
+    }
 
     // Enhanced color palette with semantic names for accessibility
     val colorOptions = listOf(
@@ -150,6 +172,7 @@ fun AddTaskDialog(
     fun validateAndSubmit() {
         if (title.isBlank()) {
             titleError = "Please enter a task title"
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             return
         }
 
@@ -204,7 +227,7 @@ fun AddTaskDialog(
                     textAlign = TextAlign.Center
                 )
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier
                         .width(64.dp)
                         .padding(bottom = 24.dp),
@@ -264,7 +287,10 @@ fun AddTaskDialog(
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        onNext = {
+                            focusManager.moveFocus(FocusDirection.Down)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
                     )
                 )
 
@@ -323,9 +349,15 @@ fun AddTaskDialog(
                             TextButton(
                                 onClick = {
                                     isCustomTimeMode = !isCustomTimeMode
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (!isCustomTimeMode) {
                                         keyboardController?.hide()
+                                    } else if (customTimeInput.isEmpty()) {
+                                        customTimeInput = dueMinutes.toString()
                                     }
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = if (isCustomTimeMode) "Switch to slider mode" else "Switch to custom time entry"
                                 }
                             ) {
                                 Text(
@@ -345,38 +377,97 @@ fun AddTaskDialog(
                             exit = fadeOut() + shrinkVertically()
                         ) {
                             Column {
+                                // Add min/max slider labels
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "5m",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "8h",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
                                 // Visual time indicator
                                 val animatedDueMinutes by animateFloatAsState(
                                     targetValue = dueMinutes.toFloat(),
                                     label = "DueMinutesAnimation"
                                 )
 
-                                Slider(
-                                    value = animatedDueMinutes,
-                                    onValueChange = { dueMinutes = it.toInt() },
-                                    valueRange = 5f..480f,  // Extended to 8 hours
-                                    steps = 0,  // Continuous slider for better UX
+                                Box(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Slider(
+                                        value = animatedDueMinutes,
+                                        onValueChange = { dueMinutes = it.toInt() },
+                                        valueRange = 5f..480f,  // Extended to 8 hours
+                                        steps = 0,  // Continuous slider for better UX
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .semantics {
+                                                contentDescription = "Adjust due time, currently ${formatTimeDisplay(dueMinutes)}"
+                                            },
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                                        ),
+                                        onValueChangeFinished = {
+                                            sliderDragging = false
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        },
+                                        // Track when slider is being dragged to provide haptic feedback
+                                        interactionSource = remember {
+                                            androidx.compose.foundation.interaction.MutableInteractionSource()
+                                        }.also { interactionSource ->
+                                            LaunchedEffect(interactionSource) {
+                                                interactionSource.interactions.collect { interaction ->
+                                                    when (interaction) {
+                                                        is androidx.compose.foundation.interaction.DragInteraction.Start -> {
+                                                            sliderDragging = true
+                                                            lastDueMinutesValue = dueMinutes
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     )
+                                }
+
+                                // Current value indication
+                                Text(
+                                    text = formatTimeDisplay(dueMinutes),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    fontWeight = FontWeight.SemiBold
                                 )
 
                                 // Quick time presets in flow layout
                                 FlowRow(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(top = 8.dp),
+                                        .padding(top = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     timePresets.forEach { (time, label) ->
                                         OutlinedButton(
                                             onClick = {
-                                                dueMinutes = time
-                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                if (dueMinutes != time) {
+                                                    dueMinutes = time
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                }
                                             },
                                             shape = RoundedCornerShape(12.dp),
                                             colors = ButtonDefaults.outlinedButtonColors(
@@ -411,36 +502,91 @@ fun AddTaskDialog(
                             enter = fadeIn() + expandVertically(),
                             exit = fadeOut() + shrinkVertically()
                         ) {
-                            OutlinedTextField(
-                                value = customTimeInput,
-                                onValueChange = {
-                                    if (it.isEmpty() || it.matches(Regex("^\\d{0,4}$"))) {
-                                        customTimeInput = it
-                                        it.toIntOrNull()?.let { mins ->
-                                            if (mins > 0) dueMinutes = mins
+                            Column {
+                                OutlinedTextField(
+                                    value = customTimeInput,
+                                    onValueChange = {
+                                        if (it.isEmpty() || it.matches(Regex("^\\d{0,4}$"))) {
+                                            // Provide subtle haptic feedback when typing
+                                            if (it.length != customTimeInput.length) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                            customTimeInput = it
+                                            it.toIntOrNull()?.let { mins ->
+                                                if (mins > 0) dueMinutes = mins
+                                            }
+                                        }
+                                    },
+                                    label = { Text("Minutes") },
+                                    placeholder = { Text("Enter custom time in minutes") },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .semantics {
+                                            contentDescription = "Enter custom due time in minutes"
+                                        },
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Number,
+                                        imeAction = ImeAction.Done
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onDone = {
+                                            keyboardController?.hide()
+                                            focusManager.clearFocus()
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                    ),
+                                    singleLine = true,
+                                    supportingText = {
+                                        Text(
+                                            "Enter time in minutes (1-1440)",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                )
+
+                                // Add quick preset buttons for custom mode too
+                                FlowRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    timePresets.forEach { (time, label) ->
+                                        OutlinedButton(
+                                            onClick = {
+                                                customTimeInput = time.toString()
+                                                dueMinutes = time
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = if (customTimeInput == time.toString())
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                                else
+                                                    Color.Transparent
+                                            ),
+                                            border = BorderStroke(
+                                                width = 1.dp,
+                                                color = if (customTimeInput == time.toString())
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                            )
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
                                         }
                                     }
-                                },
-                                label = { Text("Minutes") },
-                                placeholder = { Text("Enter custom time in minutes") },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                    }
-                                ),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                                ),
-                                singleLine = true
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -464,9 +610,14 @@ fun AddTaskDialog(
                                 .fillMaxWidth()
                                 .clickable {
                                     isColorPanelExpanded = !isColorPanelExpanded
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 }
-                                .semantics { contentDescription = "Color selection section" },
+                                .semantics {
+                                    contentDescription = if (isColorPanelExpanded)
+                                        "Collapse color selection"
+                                    else
+                                        "Expand color selection"
+                                },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -478,11 +629,20 @@ fun AddTaskDialog(
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            Text(
-                                text = "Task Color",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.weight(1f)
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Task Color",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                // Show the semantic color name for better feedback
+                                val colorName = colorOptions.find { it.first == selectedColor }?.second ?: "Custom"
+                                Text(
+                                    text = colorName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
                             // Selected color preview
                             Box(
@@ -523,28 +683,32 @@ fun AddTaskDialog(
                             ) {
                                 colorOptions.forEach { (color, name) ->
                                     val colorValue = Color(color.toColorInt())
+                                    val isSelected = color == selectedColor
+
                                     Box(
                                         modifier = Modifier
                                             .size(48.dp)
                                             .shadow(
-                                                elevation = if (color == selectedColor) 4.dp else 1.dp,
+                                                elevation = if (isSelected) 4.dp else 1.dp,
                                                 shape = CircleShape
                                             )
                                             .clip(CircleShape)
                                             .background(colorValue)
                                             .border(
-                                                width = if (color == selectedColor) 2.dp else 0.dp,
+                                                width = if (isSelected) 2.dp else 0.dp,
                                                 color = MaterialTheme.colorScheme.primary,
                                                 shape = CircleShape
                                             )
                                             .clickable {
-                                                selectedColor = color
-                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                if (color != selectedColor) {
+                                                    selectedColor = color
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                }
                                             }
                                             .semantics { contentDescription = "Select $name color" },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (color == selectedColor) {
+                                        if (isSelected) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Check,
                                                 contentDescription = null,
@@ -570,7 +734,10 @@ fun AddTaskDialog(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onDismiss()
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp)
