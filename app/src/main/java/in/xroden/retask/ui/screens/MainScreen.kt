@@ -51,7 +51,7 @@ fun MainScreen(
         val currentTask = sortedTasks.firstOrNull() ?: return
 
         // Other tasks for the drawer
-        val otherTasks = sortedTasks.drop(1)
+        val otherTasks = sortedTasks
 
         // State for bottom sheet
         val sheetState = rememberBottomSheetScaffoldState()
@@ -71,6 +71,7 @@ fun MainScreen(
                 sheetContent = {
                     TaskDrawer(
                         tasks = otherTasks,
+                        selectedTask = selectedTask,
                         onTaskClick = { task ->
                             selectedTask = task
                         },

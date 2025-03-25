@@ -56,6 +56,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -104,7 +105,7 @@ fun EditTaskDialog(
         if (diffMinutes <= 0) 15 else diffMinutes.toInt() // Default to 15 min if already due
     }
 
-    var dueMinutes by remember { mutableStateOf(initialDueMinutes) }
+    var dueMinutes by remember { mutableIntStateOf(initialDueMinutes) }
     var customTimeInput by remember { mutableStateOf(initialDueMinutes.toString()) }
     var isCustomTimeMode by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf(task.colorHex) }

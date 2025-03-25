@@ -56,6 +56,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -94,7 +95,7 @@ fun AddTaskDialog(
 ) {
     var title by remember { mutableStateOf("") }
     var titleError by remember { mutableStateOf<String?>(null) }
-    var dueMinutes by remember { mutableStateOf(15) }
+    var dueMinutes by remember { mutableIntStateOf(15) }
     var customTimeInput by remember { mutableStateOf("") }
     var isCustomTimeMode by remember { mutableStateOf(false) }
     var selectedColor by remember { mutableStateOf("#FFD6D6") }

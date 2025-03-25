@@ -1,6 +1,7 @@
 package `in`.xroden.retask.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ import `in`.xroden.retask.data.model.Task
 @Composable
 fun TaskDrawer(
     tasks: List<Task>,
+    selectedTask: Task?, // Add this parameter
     onTaskClick: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -36,6 +38,7 @@ fun TaskDrawer(
             items(tasks) { task ->
                 TaskListItem(
                     task = task,
+                    isSelected = selectedTask?.id == task.id, // Pass selection state
                     onClick = { onTaskClick(task) }
                 )
             }
@@ -46,21 +49,36 @@ fun TaskDrawer(
 @Composable
 fun TaskListItem(
     task: Task,
+    isSelected: Boolean = false, // Add this parameter
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val surfaceColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
 
-    val surfaceColor = MaterialTheme.colorScheme.surface
+    val borderModifier = if (isSelected) {
+        Modifier.border(
+            width = 2.dp,
+            color = task.getBackgroundColor(),
+            shape = RoundedCornerShape(12.dp)
+        )
+    } else {
+        Modifier
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .shadow(
-                elevation = 2.dp,
+                elevation = if (isSelected) 4.dp else 2.dp,
                 shape = RoundedCornerShape(12.dp),
                 spotColor = task.getBackgroundColor().copy(alpha = 0.1f)
             )
+            .then(borderModifier) // Apply conditional border
             .background(surfaceColor)
             .clickable(onClick = onClick)
     ) {
@@ -70,10 +88,10 @@ fun TaskListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Colored indicator
+            // Colored indicator - make it thicker when selected
             Box(
                 modifier = Modifier
-                    .size(width = 4.dp, height = 40.dp)
+                    .size(width = if (isSelected) 6.dp else 4.dp, height = 40.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(task.getBackgroundColor())
             )
@@ -87,10 +105,12 @@ fun TaskListItem(
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Medium
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     ),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -98,17 +118,30 @@ fun TaskListItem(
                 Text(
                     text = task.getDueText(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
 
-            // Priority indicator or status can be added here
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(task.getBackgroundColor())
-            )
+            // Priority indicator or status
+            if (isSelected) {
+                // Show a check icon or a larger indicator for selected item
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(task.getBackgroundColor())
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(task.getBackgroundColor())
+                )
+            }
         }
     }
 }
