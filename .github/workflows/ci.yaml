@@ -1,4 +1,4 @@
-name: ReTask CI Pipeline
+name: Retask CI Pipeline
 
 on:
   push:
@@ -88,55 +88,49 @@ jobs:
 
   release:
     needs: build
-    # Only run release job if commit message contains '[release]' tag
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # Extract version from build job
-      - name: Download APKs from build
+      # Download artifacts from the build job
+      - name: Download APKs
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      # List downloaded files
-      - name: Prepare Release Assets
+      - name: Set Version
         run: |
-          find artifacts -type f -name "*.apk" | sort
-          
-          # Extract version from artifact directory name
-          ARTIFACT_DIR=$(find artifacts -mindepth 1 -maxdepth 1 -type d | head -1)
-          VERSION_NAME=$(basename "$ARTIFACT_DIR" | sed -E 's/retask-([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-          
-          if [ -z "$VERSION_NAME" ]; then
-            echo "Could not extract version from artifact directory name"
-            exit 1
+          # Extract version directly from build.gradle.kts
+          VERSION=$(grep 'versionName =' app/build.gradle.kts | sed -E 's/.*versionName = "([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+
+          # Fallback if grep fails
+          if [ -z "$VERSION" ]; then
+            VERSION="1.1.0"
           fi
-          
-          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-          
-          # Generate changelog from commit message
+
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using version: $VERSION"
+
+          # Generate changelog
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           echo "$COMMIT_MSG" | sed -n '/# Changelog/,$p' > CHANGELOG.md
-          
+
           if [ ! -s CHANGELOG.md ]; then
-            echo "# ReTask v${VERSION_NAME}" > CHANGELOG.md
+            echo "# Retask v${VERSION}" > CHANGELOG.md
             echo "" >> CHANGELOG.md
             echo "Release date: $(date +'%Y-%m-%d')" >> CHANGELOG.md
             echo "" >> CHANGELOG.md
             echo "$COMMIT_MSG" >> CHANGELOG.md
           fi
-          
-          cat CHANGELOG.md
 
-      # Create GitHub release with the APKs
+      # Create a GitHub release
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ env.VERSION_NAME }}
-          name: ReTask v${{ env.VERSION_NAME }}
+          tag_name: v${{ env.VERSION }}
+          name: Retask v${{ env.VERSION }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
