@@ -4,10 +4,12 @@
   <img src="images/logo.png" alt="Retasк logo" width="200" />
 </p>
 
-[![CI Pipeline](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml/badge.svg)](https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml)
-![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-1.5.0-green)
-![License](https://img.shields.io/badge/License-MIT-orange)
+<p align="center">
+  <a href="https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml"><img src="https://github.com/abhisheksharm-3/retask/actions/workflows/ci.yaml/badge.svg" alt="CI Pipeline"></a>
+  <img src="https://img.shields.io/badge/Kotlin-2.0.21-purple" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-Latest-green" alt="Jetpack Compose">
+  <img src="https://img.shields.io/badge/License-MIT-orange" alt="License">
+</p>
 
 ## 🚀 For Users
 
