@@ -1,4 +1,4 @@
-name: Retask CI Pipeline
+name: ReTask CI Pipeline
 
 on:
   push:
@@ -19,133 +19,127 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle' # Enable Gradle caching for faster builds
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: 'wrapper'
+          cache-read-only: false
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # Decode the base64 encoded keystore file in multiple locations
+      # Decode the keystore file once to a secure location
       - name: Decode Keystore
+        if: github.event_name != 'pull_request' # Skip for PRs for security
         run: |
-          # Create directories
-          mkdir -p app/app
-          mkdir -p app
-          
-          # Place the keystore in multiple locations
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/app/keystore.jks
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/keystore.jks
-          
-          # Verify creation
-          ls -la app/app/keystore.jks || echo "app/app/keystore.jks not found"
-          ls -la app/keystore.jks || echo "app/keystore.jks not found"
+          mkdir -p $HOME/keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $HOME/keystore/release.jks
+          echo "KEYSTORE_PATH=$HOME/keystore/release.jks" >> $GITHUB_ENV
 
-      # Build with both debug and release
-      - name: Build APKs
+      # Build debug APK first
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      # Build release APK only on main branch or manual trigger
+      - name: Build Release APK
+        if: github.event_name != 'pull_request'
         run: |
-          ./gradlew assembleDebug
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=app/keystore.jks \
+            -Pandroid.injected.signing.store.file=${KEYSTORE_PATH} \
             -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} \
+            --stacktrace
 
-      # Search for any APK files that were generated
-      - name: Find APK files
+      # Generate version properties for naming consistency
+      - name: Generate Version Properties
+        id: version
         run: |
-          echo "Searching for all APK files in the project..."
-          find . -name "*.apk" | tee apk_files.txt
-          
-          if [ -s apk_files.txt ]; then
-            echo "APK files found!"
-            # Create a directory to collect all APKs
-            mkdir -p all_apks
-            # Copy all found APKs to the collection directory
-            while IFS= read -r file; do
-              cp "$file" all_apks/
-            done < apk_files.txt
-          else
-            echo "No APK files found in the project."
-            exit 1
+          VERSION_NAME=$(./gradlew -q printVersionName)
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+
+      # Collect and organize APKs
+      - name: Organize APKs
+        run: |
+          mkdir -p artifacts
+          # Copy debug APK if it exists
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk artifacts/retask-${VERSION_NAME}-debug.apk
           fi
+          
+          # Copy release APK if it exists
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk artifacts/retask-${VERSION_NAME}-release.apk
+          fi
+          
+          ls -la artifacts/
 
-      # Upload all found APKs as artifacts
-      - name: Upload All APKs
+      # Upload artifacts with specific names
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: all-apks
-          path: all_apks/
+          name: retask-${VERSION_NAME}-apks
+          path: artifacts/*.apk
           if-no-files-found: error
-
-      # Also upload debug APK specifically if found
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: warn
+          retention-days: 7
 
   release:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release')
+    # Only run release job if commit message contains '[release]' tag
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # Download all APKs
+      # Extract version from build job
       - name: Download APKs from build
         uses: actions/download-artifact@v4
         with:
-          name: all-apks
           path: artifacts
 
       # List downloaded files
-      - name: List downloaded artifacts
+      - name: Prepare Release Assets
         run: |
-          ls -la artifacts/
+          find artifacts -type f -name "*.apk" | sort
           
-          # Find the release APK or use the first APK if can't determine
-          RELEASE_APK=$(find artifacts/ -name "*release*.apk" | head -1)
-          if [ -z "$RELEASE_APK" ]; then
-            RELEASE_APK=$(find artifacts/ -name "*.apk" | head -1)
-          fi
+          # Extract version from artifact directory name
+          ARTIFACT_DIR=$(find artifacts -mindepth 1 -maxdepth 1 -type d | head -1)
+          VERSION_NAME=$(basename "$ARTIFACT_DIR" | sed -E 's/retask-([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           
-          if [ -z "$RELEASE_APK" ]; then
-            echo "No APK found in artifacts!"
+          if [ -z "$VERSION_NAME" ]; then
+            echo "Could not extract version from artifact directory name"
             exit 1
           fi
           
-          echo "Using APK: $RELEASE_APK"
-          echo "RELEASE_APK=$RELEASE_APK" >> $GITHUB_ENV
-
-      # Extract version from commit message
-      - name: Extract version from commit message
-        id: extract_version
-        run: |
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          
+          # Generate changelog from commit message
           COMMIT_MSG="${{ github.event.head_commit.message }}"
-          if [[ $COMMIT_MSG =~ \[release\ v([0-9]+\.[0-9]+\.[0-9]+)\] ]]; then
-            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
-          else
-            echo "version=1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" | sed -n '/# Changelog/,$p' > CHANGELOG.md
+          
+          if [ ! -s CHANGELOG.md ]; then
+            echo "# ReTask v${VERSION_NAME}" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "Release date: $(date +'%Y-%m-%d')" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "$COMMIT_MSG" >> CHANGELOG.md
           fi
+          
+          cat CHANGELOG.md
 
-      # Rename the APK to include the version
-      - name: Rename APK
-        run: |
-          mkdir -p renamed
-          cp "$RELEASE_APK" "renamed/retask-v${{ steps.extract_version.outputs.version }}.apk"
-
-      # Create GitHub release with the renamed APK
+      # Create GitHub release with the APKs
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.extract_version.outputs.version }}
-          name: Release v${{ steps.extract_version.outputs.version }}
+          tag_name: v${{ env.VERSION_NAME }}
+          name: ReTask v${{ env.VERSION_NAME }}
+          body_path: CHANGELOG.md
           draft: false
           prerelease: false
-          files: renamed/retask-v${{ steps.extract_version.outputs.version }}.apk
+          files: artifacts/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
