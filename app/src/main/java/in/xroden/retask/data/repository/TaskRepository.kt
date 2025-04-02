@@ -105,4 +105,15 @@ class TaskRepository(private val taskDao: TaskDao) {
             false
         }
     }
+
+    /**
+     * Retrieves tasks due between the specified start and end times.
+     *
+     * @param startTime The start time in milliseconds since epoch
+     * @param endTime The end time in milliseconds since epoch
+     * @return Flow of tasks due between the specified time range
+     */
+    fun getTasksDueBetween(startTime: Long, endTime: Long): Flow<List<Task>> {
+        return taskDao.getTasksDueBetween(startTime, endTime)
+    }
 }

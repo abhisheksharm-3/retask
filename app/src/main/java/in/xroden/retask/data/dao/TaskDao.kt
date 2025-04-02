@@ -56,4 +56,14 @@ interface TaskDao {
     @Transaction
     @Query("DELETE FROM tasks")
     suspend fun deleteAllTasks()
+
+    /**
+     * Retrieves tasks due between the specified start and end times.
+     *
+     * @param startTime The start time in milliseconds since epoch
+     * @param endTime The end time in milliseconds since epoch
+     * @return Flow of tasks due between the specified time range
+     */
+    @Query("SELECT * FROM tasks WHERE dueDate BETWEEN :startTime AND :endTime ORDER BY dueDate ASC")
+    fun getTasksDueBetween(startTime: Long, endTime: Long): Flow<List<Task>>
 }

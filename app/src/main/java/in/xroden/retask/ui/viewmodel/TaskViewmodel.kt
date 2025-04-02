@@ -1,6 +1,7 @@
 package `in`.xroden.retask.ui.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -10,6 +11,8 @@ import kotlinx.coroutines.launch
 import `in`.xroden.retask.data.repository.TaskRepository
 import `in`.xroden.retask.data.model.Task
 import `in`.xroden.retask.data.database.TaskDatabase
+import `in`.xroden.retask.service.TaskNotificationService
+import `in`.xroden.retask.service.TaskReminderService
 
 class TaskViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: TaskRepository
@@ -27,6 +30,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
     fun completeTask(task: Task) = viewModelScope.launch {
         repository.completeTask(task)
+        TaskReminderService.cancelTask(getApplication(), task.id)
     }
 
     fun snoozeTask(task: Task) = viewModelScope.launch {
@@ -34,6 +38,12 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val newDueDate = task.dueDate + (15 * 60 * 1000)
         val updatedTask = task.copy(dueDate = newDueDate)
         repository.updateTask(updatedTask)
+
+        // Update the scheduled notification
+        TaskReminderService.scheduleTask(getApplication(), updatedTask)
+
+        // Ensure notification service is running
+        ensureNotificationServiceRunning()
     }
 
     fun addTask(
@@ -41,7 +51,13 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         dueMinutes: Int,
         colorHex: String
     ) = viewModelScope.launch {
-        repository.createTask(title, dueMinutes, colorHex)
+        val task = repository.createTask(title, dueMinutes, colorHex)
+
+        // Schedule notification for this task
+        TaskReminderService.scheduleTask(getApplication(), task)
+
+        // Ensure notification service is running
+        ensureNotificationServiceRunning()
     }
 
     // Method to edit an existing task
@@ -63,34 +79,52 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         )
 
         repository.updateTask(updatedTask)
+
+        // Update the scheduled notification
+        TaskReminderService.scheduleTask(getApplication(), updatedTask)
+
+        // Ensure notification service is running
+        ensureNotificationServiceRunning()
     }
 
-    // Add sample data for testing
     fun addSampleTasks() = viewModelScope.launch {
         val colors = listOf("#F6D8CE", "#D5F5E3", "#FADBD8", "#D6EAF8")
 
-        repository.createTask(
-            "Coffee with Mel",
+        val task1 = repository.createTask(
+            "Chai with Priya",
             -30, // 30 minutes ago
             colors[0]
         )
 
-        repository.createTask(
-            "Water plants",
+        val task2 = repository.createTask(
+            "Water tulsi plant",
             -20, // 20 minutes ago
             colors[1]
         )
 
-        repository.createTask(
-            "Get to the airport!",
+        val task3 = repository.createTask(
+            "Book Ola to Bangalore airport!",
             0, // Now
             colors[2]
         )
 
-        repository.createTask(
-            "Go to the gym",
+        val task4 = repository.createTask(
+            "Attend yoga class",
             10, // 10 minutes from now
             colors[3]
         )
+
+        // Schedule notifications only for future tasks
+        TaskReminderService.scheduleTask(getApplication(), task3)
+        TaskReminderService.scheduleTask(getApplication(), task4)
+
+        // Ensure notification service is running
+        ensureNotificationServiceRunning()
+    }
+    private fun ensureNotificationServiceRunning() {
+        val context = getApplication<Application>()
+        val serviceIntent = Intent(context, TaskNotificationService::class.java)
+
+        context.startForegroundService(serviceIntent)
     }
 }
