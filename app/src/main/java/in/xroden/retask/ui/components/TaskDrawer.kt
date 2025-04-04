@@ -44,7 +44,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -79,8 +78,6 @@ fun TaskDrawer(
     val groupedTasks by remember(tasks) {
         derivedStateOf {
             val grouped = mutableMapOf<String, MutableList<Task>>()
-
-            // One day in milliseconds
             val oneDayMs = 24 * 60 * 60 * 1000
 
             tasks.forEach { task ->
@@ -118,71 +115,100 @@ fun TaskDrawer(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp)
+                .padding(top = 24.dp)
         ) {
-            // Drawer header with task count
+            // Enhanced drawer header with task count
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "My Tasks",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.2.sp
+                        letterSpacing = 0.25.sp
                     ),
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Task counter pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                // Enhanced task counter pill
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    tonalElevation = 2.dp,
+                    shadowElevation = 1.dp,
+                    modifier = Modifier.semantics {
+                        contentDescription = "${tasks.size} tasks"
+                    }
                 ) {
                     Text(
                         text = "${tasks.size}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp),
                 thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Task list grouped by date
             if (tasks.isEmpty()) {
-                // Empty state
+                // Enhanced empty state
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 32.dp),
+                        .padding(top = 48.dp, bottom = 48.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Your task list is empty",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(60.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Timer,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Your task list is empty",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // For each group, add a header and its tasks
                     groupedTasks.forEach { (dateGroup, tasksInGroup) ->
@@ -195,7 +221,7 @@ fun TaskDrawer(
 
                         items(
                             items = tasksInGroup,
-                            key = { it.id } // Use stable key for better animations
+                            key = { it.id }
                         ) { task ->
                             TaskListItem(
                                 task = task,
@@ -214,13 +240,13 @@ fun TaskDrawer(
 
                         // Add spacing between groups
                         item {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
 
                     // Add bottom padding
                     item {
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
@@ -236,11 +262,16 @@ fun DateGroupHeader(
 ) {
     // Determine if this date group represents urgent tasks (today or overdue)
     val isUrgent = dateGroup == "Today" || dateGroup == "Overdue"
+    val headerColor = when (dateGroup) {
+        "Overdue" -> MaterialTheme.colorScheme.error
+        "Today" -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Date group label with optional urgency indicator
@@ -250,16 +281,16 @@ fun DateGroupHeader(
             if (isUrgent) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
-                        .background(
-                            if (dateGroup == "Overdue")
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.primary
+                        .background(headerColor)
+                        .shadow(
+                            elevation = 1.dp,
+                            shape = CircleShape,
+                            spotColor = headerColor.copy(alpha = 0.5f)
                         )
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             }
 
             Text(
@@ -268,22 +299,29 @@ fun DateGroupHeader(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.4.sp
                 ),
-                color = when (dateGroup) {
-                    "Overdue" -> MaterialTheme.colorScheme.error
-                    "Today" -> MaterialTheme.colorScheme.primary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                color = headerColor
             )
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Count label
-        Text(
-            text = "$count",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
+        // Count label with enhanced styling
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = headerColor.copy(alpha = 0.15f),
+            modifier = Modifier.semantics {
+                contentDescription = "$count tasks for $dateGroup"
+            }
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                color = headerColor,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 
@@ -294,7 +332,7 @@ fun TaskListItem(
     isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
-    // Animation properties
+    // Enhanced animation properties
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.02f else 1f,
         animationSpec = spring(
@@ -305,7 +343,7 @@ fun TaskListItem(
     )
 
     val elevation by animateFloatAsState(
-        targetValue = if (isSelected) 4f else 1f,
+        targetValue = if (isSelected) 6f else 2f,
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "itemElevation"
     )
@@ -325,6 +363,16 @@ fun TaskListItem(
     val isUrgent = timeRemaining in 1..900000 // Due within 15 minutes
     val isOverdue = timeRemaining <= 0
 
+    // Enhanced indicator color with better contrast
+    val indicatorColor = when {
+        isOverdue -> MaterialTheme.colorScheme.error
+        isUrgent -> task.getBackgroundColor().copy(
+            red = minOf(1f, task.getBackgroundColor().red + 0.15f),
+            alpha = 0.9f
+        )
+        else -> task.getBackgroundColor()
+    }
+
     // Task semantic description
     val urgencyText = when {
         isOverdue -> ", overdue"
@@ -336,22 +384,23 @@ fun TaskListItem(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .padding(vertical = 4.dp)
             .scale(scale)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .shadow(
                 elevation = elevation.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = task.getBackgroundColor().copy(alpha = 0.2f)
+                shape = RoundedCornerShape(18.dp),
+                spotColor = indicatorColor.copy(alpha = 0.3f)
             )
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) task.getBackgroundColor() else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
+                color = if (isSelected) indicatorColor else Color.Transparent,
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable(onClick = onClick)
             .semantics { contentDescription = taskDescription },
         color = backgroundColor,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         tonalElevation = elevation.dp
     ) {
         Row(
@@ -360,37 +409,41 @@ fun TaskListItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Colored indicator with variable thickness based on selection/urgency
+            // Enhanced color indicator with animation
+            val indicatorWidth by animateFloatAsState(
+                targetValue = when {
+                    isSelected -> 6f
+                    isUrgent -> 5f
+                    else -> 4f
+                },
+                animationSpec = tween(durationMillis = 200),
+                label = "indicatorWidth"
+            )
+
             Box(
                 modifier = Modifier
                     .size(
-                        width = when {
-                            isSelected -> 6.dp
-                            isUrgent -> 5.dp
-                            else -> 4.dp
-                        },
-                        height = 44.dp
+                        width = indicatorWidth.dp,
+                        height = 48.dp
                     )
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        when {
-                            isOverdue -> MaterialTheme.colorScheme.error
-                            isUrgent -> task.getBackgroundColor()
-                                .copy(red = minOf(1f, task.getBackgroundColor().red + 0.1f))
-
-                            else -> task.getBackgroundColor()
-                        }
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(indicatorColor)
+                    .shadow(
+                        elevation = 1.dp,
+                        shape = RoundedCornerShape(8.dp),
+                        spotColor = indicatorColor
                     )
             )
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Task content with better organization
+            // Task content with better spacing
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = task.title,
@@ -404,30 +457,40 @@ fun TaskListItem(
                         modifier = Modifier.weight(1f, fill = false)
                     )
 
-                    // Show urgency indicator if needed
-                    if (isUrgent) {
+                    // Enhanced urgency indicator
+                    if (isUrgent || isOverdue) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Rounded.Timer,
-                            contentDescription = "Urgent",
-                            tint = if (isOverdue)
-                                MaterialTheme.colorScheme.error
-                            else
-                                MaterialTheme.colorScheme.primary,
+
+                        val iconTint = if (isOverdue)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.primary
+
+                        Box(
                             modifier = Modifier
-                                .size(16.dp)
-                                .alpha(0.8f)
-                        )
+                                .clip(CircleShape)
+                                .background(iconTint.copy(alpha = 0.15f))
+                                .padding(4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Timer,
+                                contentDescription = if (isOverdue) "Overdue" else "Urgent",
+                                tint = iconTint,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Due time with styling based on urgency
+                // Enhanced due time with better styling based on urgency
                 Text(
                     text = task.getDueText(),
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = if (isOverdue || isUrgent) FontWeight.Medium else FontWeight.Normal
+                        fontWeight = if (isOverdue || isUrgent) FontWeight.Medium else FontWeight.Normal,
+                        letterSpacing = 0.1.sp
                     ),
                     color = when {
                         isOverdue -> MaterialTheme.colorScheme.error
@@ -437,17 +500,23 @@ fun TaskListItem(
                 )
             }
 
-            // Visual indicator for selected state
+            // Enhanced visual indicator for selected state
             AnimatedVisibility(
                 visible = isSelected,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+                enter = fadeIn(tween(200)) + expandVertically(tween(200)),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
             ) {
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .padding(start = 8.dp)
+                        .size(12.dp)
                         .clip(CircleShape)
-                        .background(task.getBackgroundColor())
+                        .background(indicatorColor)
+                        .shadow(
+                            elevation = 2.dp,
+                            shape = CircleShape,
+                            spotColor = indicatorColor
+                        )
                 )
             }
         }
