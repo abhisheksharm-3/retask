@@ -33,7 +33,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,12 +49,14 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
-import java.time.format.TextStyle
+import java.time.format.TextStyle as DateTextStyle
 import java.util.Locale
 
 /**
@@ -68,20 +73,35 @@ fun NoTasks(
     onAddNewTask: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Device configuration detection
-    val deviceConfig = rememberDeviceConfiguration()
+    // Get current device form factor and dimensions
+    val deviceConfig = rememberDeviceConfig()
 
-    // Animation for the icon
+    // Get theme typography for dimensions
+    val typography = MaterialTheme.typography
+
+    // Create dimensions based on device config and typography
+    val dimensions = remember(deviceConfig) {
+        NoTasksDimensions(
+            deviceConfig = deviceConfig
+        )
+    }
+
+    // Common elements across all layouts
     val scale = rememberPulseAnimation()
-
-    // Current day for personalized message
     val dayOfWeek = rememberCurrentDayOfWeek()
-
-    // Warm gradient for visual elements
     val warmGradient = rememberWarmGradient()
-
-    // Haptic feedback
     val haptic = LocalHapticFeedback.current
+
+    // Action handlers with haptic feedback
+    val handleAddNewTask: () -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        onAddNewTask()
+    }
+
+    val handleAddSampleTasks: () -> Unit = {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onAddSampleTasks()
+    }
 
     Surface(
         modifier = modifier
@@ -90,85 +110,107 @@ fun NoTasks(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {
+        // Choose appropriate layout based on device configuration
         when {
-            // Mobile landscape (scrollable)
-            deviceConfig.isMobileLandscape -> MobileLandscapeLayout(
-                dayOfWeek = dayOfWeek,
-                scale = scale,
-                warmGradient = warmGradient,
-                onAddNewTask = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onAddNewTask()
-                },
-                onAddSampleTasks = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddSampleTasks()
-                }
-            )
+            deviceConfig.isMobileLandscape ->
+                LandscapeLayout(
+                    dimensions = dimensions,
+                    typography = typography,
+                    dayOfWeek = dayOfWeek,
+                    scale = scale,
+                    warmGradient = warmGradient,
+                    onAddNewTask = handleAddNewTask,
+                    onAddSampleTasks = handleAddSampleTasks,
+                    isScrollable = true
+                )
 
-            // Tablet landscape
-            deviceConfig.isLandscape && deviceConfig.isTablet -> TabletLandscapeLayout(
-                dayOfWeek = dayOfWeek,
-                scale = scale,
-                warmGradient = warmGradient,
-                screenWidth = deviceConfig.screenWidth,
-                onAddNewTask = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onAddNewTask()
-                },
-                onAddSampleTasks = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddSampleTasks()
-                }
-            )
+            deviceConfig.isLandscape && deviceConfig.isTablet ->
+                TabletLandscapeLayout(
+                    dimensions = dimensions,
+                    typography = typography,
+                    dayOfWeek = dayOfWeek,
+                    scale = scale,
+                    warmGradient = warmGradient,
+                    onAddNewTask = handleAddNewTask,
+                    onAddSampleTasks = handleAddSampleTasks
+                )
 
-            // Foldable portrait
-            deviceConfig.isFoldable -> FoldableLayout(
-                dayOfWeek = dayOfWeek,
-                scale = scale,
-                warmGradient = warmGradient,
-                onAddNewTask = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onAddNewTask()
-                },
-                onAddSampleTasks = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddSampleTasks()
-                }
-            )
+            deviceConfig.isFoldable || (deviceConfig.isTablet && !deviceConfig.isLandscape) ->
+                CenteredLayout(
+                    dimensions = dimensions,
+                    typography = typography,
+                    dayOfWeek = dayOfWeek,
+                    scale = scale,
+                    warmGradient = warmGradient,
+                    onAddNewTask = handleAddNewTask,
+                    onAddSampleTasks = handleAddSampleTasks,
+                    isFoldable = deviceConfig.isFoldable
+                )
 
-            // Tablet portrait
-            deviceConfig.isTablet && !deviceConfig.isLandscape -> TabletPortraitLayout(
-                dayOfWeek = dayOfWeek,
-                scale = scale,
-                warmGradient = warmGradient,
-                screenWidth = deviceConfig.screenWidth,
-                onAddNewTask = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onAddNewTask()
-                },
-                onAddSampleTasks = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddSampleTasks()
-                }
-            )
-
-            // Standard phone portrait (default)
-            else -> PhonePortraitLayout(
-                dayOfWeek = dayOfWeek,
-                scale = scale,
-                warmGradient = warmGradient,
-                onAddNewTask = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onAddNewTask()
-                },
-                onAddSampleTasks = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onAddSampleTasks()
-                }
-            )
+            else ->
+                StandardLayout(
+                    dimensions = dimensions,
+                    typography = typography,
+                    dayOfWeek = dayOfWeek,
+                    scale = scale,
+                    warmGradient = warmGradient,
+                    onAddNewTask = handleAddNewTask,
+                    onAddSampleTasks = handleAddSampleTasks
+                )
         }
     }
+}
+
+/**
+ * Dimensions system that adapts to device configuration
+ */
+@Stable
+private class NoTasksDimensions(deviceConfig: DeviceConfig) {
+    // Icon sizes
+    val iconSize: Dp = when {
+        deviceConfig.isTablet && deviceConfig.screenWidth > 840.dp -> 180.dp
+        deviceConfig.isTablet -> 150.dp
+        deviceConfig.isFoldable -> 130.dp
+        deviceConfig.isMobileLandscape -> 90.dp
+        else -> 120.dp
+    }
+
+    // Button dimensions
+    val buttonHeight: Dp = when {
+        deviceConfig.isTablet && deviceConfig.screenWidth > 840.dp -> 64.dp
+        deviceConfig.isTablet || deviceConfig.isFoldable -> 58.dp
+        else -> 54.dp
+    }
+
+    val buttonWidthFraction: Float = when {
+        deviceConfig.isTablet && deviceConfig.screenWidth > 840.dp -> 0.5f
+        deviceConfig.isTablet -> 0.65f
+        deviceConfig.isFoldable -> 0.75f
+        else -> 0.85f
+    }
+
+    // Padding values
+    val horizontalPadding: Dp = when {
+        deviceConfig.isTablet && deviceConfig.screenWidth > 840.dp -> 48.dp
+        deviceConfig.isTablet -> 36.dp
+        deviceConfig.isFoldable -> 28.dp
+        else -> 24.dp
+    }
+
+    val contentSpacing: Dp = when {
+        deviceConfig.isTablet -> 40.dp
+        deviceConfig.isFoldable -> 32.dp
+        else -> 24.dp
+    }
+
+    val buttonSpacing: Dp = when {
+        deviceConfig.isTablet -> 20.dp
+        else -> 16.dp
+    }
+
+    // Determine whether to use large or small headings based on device type
+    val useHeadlineLarge: Boolean = deviceConfig.isTablet && deviceConfig.screenWidth > 840.dp
+    val useHeadlineMedium: Boolean = deviceConfig.isTablet || deviceConfig.isFoldable
 }
 
 // ----- Device Configuration -----
@@ -176,9 +218,10 @@ fun NoTasks(
 /**
  * Data class for holding device configuration information
  */
-private data class DeviceConfiguration(
-    val screenWidth: androidx.compose.ui.unit.Dp,
-    val screenHeight: androidx.compose.ui.unit.Dp,
+@Stable
+private data class DeviceConfig(
+    val screenWidth: Dp,
+    val screenHeight: Dp,
     val isLandscape: Boolean,
     val isTablet: Boolean,
     val isFoldable: Boolean,
@@ -189,7 +232,7 @@ private data class DeviceConfiguration(
  * Calculates and provides the current device configuration
  */
 @Composable
-private fun rememberDeviceConfiguration(): DeviceConfiguration {
+private fun rememberDeviceConfig(): DeviceConfig {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
@@ -200,14 +243,16 @@ private fun rememberDeviceConfiguration(): DeviceConfiguration {
     val isFoldable = screenWidth > 580.dp && screenWidth < 700.dp && !isLandscape
     val isMobileLandscape = isLandscape && !isTablet
 
-    return DeviceConfiguration(
-        screenWidth = screenWidth,
-        screenHeight = screenHeight,
-        isLandscape = isLandscape,
-        isTablet = isTablet,
-        isFoldable = isFoldable,
-        isMobileLandscape = isMobileLandscape
-    )
+    return remember(screenWidth, screenHeight, isLandscape) {
+        DeviceConfig(
+            screenWidth = screenWidth,
+            screenHeight = screenHeight,
+            isLandscape = isLandscape,
+            isTablet = isTablet,
+            isFoldable = isFoldable,
+            isMobileLandscape = isMobileLandscape
+        )
+    }
 }
 
 // ----- Common Composable Utilities -----
@@ -234,8 +279,10 @@ private fun rememberPulseAnimation(): Float {
  */
 @Composable
 private fun rememberCurrentDayOfWeek(): String {
-    val today = LocalDate.now()
-    return today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    return remember {
+        val today = LocalDate.now()
+        today.dayOfWeek.getDisplayName(DateTextStyle.FULL, Locale.getDefault())
+    }
 }
 
 /**
@@ -243,12 +290,17 @@ private fun rememberCurrentDayOfWeek(): String {
  */
 @Composable
 private fun rememberWarmGradient(): Brush {
-    return Brush.linearGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
+    val primary = MaterialTheme.colorScheme.primary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+
+    return remember(primary, tertiary) {
+        Brush.linearGradient(
+            colors = listOf(
+                primary.copy(alpha = 0.7f),
+                tertiary.copy(alpha = 0.6f)
+            )
         )
-    )
+    }
 }
 
 // ----- Reusable UI Components -----
@@ -259,8 +311,8 @@ private fun rememberWarmGradient(): Brush {
 @Composable
 private fun GreetingSection(
     dayOfWeek: String,
-    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium,
-    bodyStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium,
+    style: TextStyle = MaterialTheme.typography.titleMedium,
+    bodyStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -285,7 +337,7 @@ private fun GreetingSection(
 private fun AnimatedIcon(
     scale: Float,
     gradient: Brush,
-    size: androidx.compose.ui.unit.Dp,
+    size: Dp,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -327,18 +379,28 @@ private fun AnimatedIcon(
  */
 @Composable
 private fun HeadingSection(
-    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.headlineSmall,
-    bodyStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyLarge,
+    typography: Typography,
+    dimensions: NoTasksDimensions,
     textAlign: TextAlign = TextAlign.Center,
+    contentPadding: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
+    // Select the right typography style based on device dimensions
+    val headlineStyle = when {
+        dimensions.useHeadlineLarge -> typography.headlineLarge
+        dimensions.useHeadlineMedium -> typography.headlineMedium
+        else -> typography.headlineSmall
+    }
+
+    val bodyStyle = typography.bodyLarge
+
     Column(
         modifier = modifier,
         horizontalAlignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
     ) {
         Text(
             text = "Mindful Productivity Awaits",
-            style = style.copy(
+            style = headlineStyle.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.3.sp
             ),
@@ -346,13 +408,14 @@ private fun HeadingSection(
             textAlign = textAlign
         )
 
-        Spacer(modifier = Modifier.height(if (style == MaterialTheme.typography.headlineMedium) 16.dp else 8.dp))
+        Spacer(modifier = Modifier.height(if (dimensions.useHeadlineMedium) 16.dp else 8.dp))
 
         Text(
             text = "Take a deep breath and start planning your day with intention. What would you like to accomplish?",
             style = bodyStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = textAlign
+            textAlign = textAlign,
+            modifier = if (contentPadding > 0.dp) Modifier.padding(horizontal = contentPadding) else Modifier
         )
     }
 }
@@ -364,10 +427,10 @@ private fun HeadingSection(
 private fun PrimaryActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    height: androidx.compose.ui.unit.Dp = 58.dp,
-    cornerRadius: androidx.compose.ui.unit.Dp = 20.dp,
-    iconSize: androidx.compose.ui.unit.Dp = 20.dp,
-    textStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium
+    height: Dp = 58.dp,
+    cornerRadius: Dp = 20.dp,
+    iconSize: Dp = 20.dp,
+    textStyle: TextStyle = MaterialTheme.typography.titleMedium
 ) {
     ElevatedButton(
         onClick = onClick,
@@ -435,7 +498,7 @@ private fun SecondaryActionButton(
 @Composable
 private fun Attribution(
     modifier: Modifier = Modifier,
-    topPadding: androidx.compose.ui.unit.Dp = 16.dp
+    topPadding: Dp = 16.dp
 ) {
     Text(
         text = "Created with ❤️ by @abhisheksharm-3",
@@ -448,24 +511,32 @@ private fun Attribution(
 // ----- Layout Implementations -----
 
 /**
- * Layout for mobile devices in landscape mode (scrollable)
+ * Layout for mobile devices in landscape mode
  */
 @Composable
-private fun MobileLandscapeLayout(
+private fun LandscapeLayout(
+    dimensions: NoTasksDimensions,
+    typography: Typography,
     dayOfWeek: String,
     scale: Float,
     warmGradient: Brush,
     onAddNewTask: () -> Unit,
-    onAddSampleTasks: () -> Unit
+    onAddSampleTasks: () -> Unit,
+    isScrollable: Boolean = false
 ) {
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
+    val contentModifier = if (isScrollable) {
+        val scrollState = rememberScrollState()
+        Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(horizontal = dimensions.horizontalPadding, vertical = 16.dp)
             .verticalScroll(scrollState)
-    ) {
+    } else {
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = dimensions.horizontalPadding, vertical = 16.dp)
+    }
+
+    Column(modifier = contentModifier) {
         // Greeting row
         Row(
             modifier = Modifier
@@ -479,41 +550,45 @@ private fun MobileLandscapeLayout(
                 modifier = Modifier.weight(1f)
             )
 
-            // Right side: Icon (smaller in landscape)
+            // Right side: Icon
             AnimatedIcon(
                 scale = scale,
                 gradient = warmGradient,
-                size = 90.dp
+                size = dimensions.iconSize
             )
         }
 
         // Header and message
         Spacer(modifier = Modifier.height(16.dp))
-        HeadingSection(textAlign = TextAlign.Start)
+        HeadingSection(
+            typography = typography,
+            dimensions = dimensions,
+            textAlign = TextAlign.Start
+        )
 
         // Action buttons
         Spacer(modifier = Modifier.height(24.dp))
         PrimaryActionButton(
             onClick = onAddNewTask,
             modifier = Modifier.fillMaxWidth(),
-            height = 54.dp,
-            cornerRadius = 16.dp
+            height = dimensions.buttonHeight
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(dimensions.buttonSpacing))
         SecondaryActionButton(onClick = onAddSampleTasks)
 
         // Attribution
-        Spacer(modifier = Modifier.height(8.dp))
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Attribution()
+            Attribution(topPadding = dimensions.buttonSpacing)
         }
 
-        // Extra space at bottom for scroll-ability
-        Spacer(modifier = Modifier.height(16.dp))
+        // Extra space at bottom for scroll-ability if needed
+        if (isScrollable) {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 
@@ -522,28 +597,25 @@ private fun MobileLandscapeLayout(
  */
 @Composable
 private fun TabletLandscapeLayout(
+    dimensions: NoTasksDimensions,
+    typography: Typography,
     dayOfWeek: String,
     scale: Float,
     warmGradient: Brush,
-    screenWidth: androidx.compose.ui.unit.Dp,
     onAddNewTask: () -> Unit,
     onAddSampleTasks: () -> Unit
 ) {
-    // Adjust values based on screen size
-    val isLargeTablet = screenWidth > 840.dp
-    val horizontalPadding = if (isLargeTablet) 48.dp else 32.dp
-    val iconSize = if (isLargeTablet) 160.dp else 130.dp
-    val headlineStyle = if (isLargeTablet) {
-        MaterialTheme.typography.headlineMedium
-    } else {
-        MaterialTheme.typography.headlineSmall
+    // Select the appropriate headline style based on dimensions
+    val headlineStyle = when {
+        dimensions.useHeadlineLarge -> typography.headlineLarge
+        dimensions.useHeadlineMedium -> typography.headlineMedium
+        else -> typography.headlineSmall
     }
-    val buttonWidth = if (isLargeTablet) 0.8f else 0.9f
 
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = horizontalPadding, vertical = 24.dp),
+            .padding(horizontal = dimensions.horizontalPadding, vertical = 24.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -555,10 +627,10 @@ private fun TabletLandscapeLayout(
             AnimatedIcon(
                 scale = scale,
                 gradient = warmGradient,
-                size = iconSize
+                size = dimensions.iconSize
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(dimensions.contentSpacing))
 
             Text(
                 text = "Mindful Productivity Awaits",
@@ -575,20 +647,20 @@ private fun TabletLandscapeLayout(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = if (isLargeTablet) 32.dp else 24.dp),
+                .padding(start = dimensions.contentSpacing),
             verticalArrangement = Arrangement.Center
         ) {
             // Greeting
             GreetingSection(
                 dayOfWeek = dayOfWeek,
-                style = MaterialTheme.typography.titleMedium
+                style = typography.titleMedium
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
                 text = "Take a deep breath and start planning your day with intention. What would you like to accomplish?",
-                style = MaterialTheme.typography.bodyLarge,
+                style = typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -596,16 +668,16 @@ private fun TabletLandscapeLayout(
 
             // Actions
             Column(
-                modifier = Modifier.fillMaxWidth(buttonWidth),
+                modifier = Modifier.fillMaxWidth(dimensions.buttonWidthFraction),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 PrimaryActionButton(
                     onClick = onAddNewTask,
                     modifier = Modifier.fillMaxWidth(),
-                    height = 58.dp
+                    height = dimensions.buttonHeight
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(dimensions.buttonSpacing))
                 SecondaryActionButton(onClick = onAddSampleTasks)
             }
         }
@@ -613,107 +685,32 @@ private fun TabletLandscapeLayout(
 }
 
 /**
- * Layout for foldable devices in portrait mode
+ * Centered layout for tablets in portrait and foldable devices
  */
 @Composable
-private fun FoldableLayout(
+private fun CenteredLayout(
+    dimensions: NoTasksDimensions,
+    typography: Typography,
     dayOfWeek: String,
     scale: Float,
     warmGradient: Brush,
     onAddNewTask: () -> Unit,
-    onAddSampleTasks: () -> Unit
+    onAddSampleTasks: () -> Unit,
+    isFoldable: Boolean = false
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 28.dp, vertical = 24.dp)
+            .padding(horizontal = dimensions.horizontalPadding, vertical = 24.dp)
     ) {
         // Greeting at the top
         GreetingSection(
             dayOfWeek = dayOfWeek,
+            style = if (isFoldable) typography.titleMedium else typography.titleLarge,
+            bodyStyle = if (isFoldable) typography.bodyMedium else typography.bodyLarge,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 8.dp)
-        )
-
-        // Main content
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            AnimatedIcon(
-                scale = scale,
-                gradient = warmGradient,
-                size = 130.dp
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            HeadingSection(
-                style = MaterialTheme.typography.headlineMedium
-            )
-        }
-
-        // Action buttons at the bottom
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            PrimaryActionButton(
-                onClick = onAddNewTask,
-                modifier = Modifier.fillMaxWidth(0.75f),
-                height = 58.dp
-            )
-
-            SecondaryActionButton(onClick = onAddSampleTasks)
-            Attribution(topPadding = 20.dp)
-        }
-    }
-}
-
-/**
- * Layout for tablets in portrait mode
- */
-@Composable
-private fun TabletPortraitLayout(
-    dayOfWeek: String,
-    scale: Float,
-    warmGradient: Brush,
-    screenWidth: androidx.compose.ui.unit.Dp,
-    onAddNewTask: () -> Unit,
-    onAddSampleTasks: () -> Unit
-) {
-    // Adjust values based on screen size
-    val isLargeTablet = screenWidth > 840.dp
-    val horizontalPadding = if (isLargeTablet) 48.dp else 36.dp
-    val tabletIconSize = if (isLargeTablet) 180.dp else 150.dp
-    val headlineStyle = if (isLargeTablet) {
-        MaterialTheme.typography.headlineLarge
-    } else {
-        MaterialTheme.typography.headlineMedium
-    }
-    val tabletButtonWidth = if (isLargeTablet) 0.5f else 0.65f
-    val headerPadding = if (isLargeTablet) 64.dp else 40.dp
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = horizontalPadding, vertical = 32.dp)
-    ) {
-        // Greeting at the top
-        GreetingSection(
-            dayOfWeek = dayOfWeek,
-            style = MaterialTheme.typography.titleLarge,
-            bodyStyle = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 16.dp)
+                .padding(top = if (isFoldable) 8.dp else 16.dp)
         )
 
         // Main content
@@ -724,29 +721,15 @@ private fun TabletPortraitLayout(
             AnimatedIcon(
                 scale = scale,
                 gradient = warmGradient,
-                size = tabletIconSize
+                size = dimensions.iconSize
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(dimensions.contentSpacing))
 
-            Text(
-                text = "Mindful Productivity Awaits",
-                style = headlineStyle.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.3.sp
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Take a deep breath and start planning your day with intention. What would you like to accomplish?",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = headerPadding)
+            HeadingSection(
+                typography = typography,
+                dimensions = dimensions,
+                contentPadding = if (!isFoldable) dimensions.contentSpacing else 32.dp
             )
         }
 
@@ -755,31 +738,31 @@ private fun TabletPortraitLayout(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
+                .padding(bottom = if (isFoldable) 28.dp else 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(dimensions.buttonSpacing)
         ) {
             PrimaryActionButton(
                 onClick = onAddNewTask,
-                modifier = Modifier.fillMaxWidth(tabletButtonWidth),
-                height = 64.dp,
-                textStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                iconSize = 24.dp
+                modifier = Modifier.fillMaxWidth(dimensions.buttonWidthFraction),
+                height = dimensions.buttonHeight,
+                textStyle = if (!isFoldable) typography.titleMedium.copy(fontSize = 18.sp) else typography.titleMedium,
+                iconSize = if (!isFoldable) 24.dp else 20.dp
             )
 
-            // Secondary action with centered text for tablets
             SecondaryActionButton(onClick = onAddSampleTasks)
-
-            Attribution(topPadding = 24.dp)
+            Attribution(topPadding = if (isFoldable) 20.dp else 24.dp)
         }
     }
 }
 
 /**
- * Layout for standard phones in portrait mode
+ * Standard layout for phones in portrait mode
  */
 @Composable
-private fun PhonePortraitLayout(
+private fun StandardLayout(
+    dimensions: NoTasksDimensions,
+    typography: Typography,
     dayOfWeek: String,
     scale: Float,
     warmGradient: Brush,
@@ -789,7 +772,7 @@ private fun PhonePortraitLayout(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(dimensions.horizontalPadding)
     ) {
         // Personalized greeting at the top
         GreetingSection(
@@ -807,12 +790,14 @@ private fun PhonePortraitLayout(
             AnimatedIcon(
                 scale = scale,
                 gradient = warmGradient,
-                size = 120.dp
+                size = dimensions.iconSize
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(dimensions.contentSpacing))
 
             HeadingSection(
+                typography = typography,
+                dimensions = dimensions,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
         }
@@ -824,15 +809,15 @@ private fun PhonePortraitLayout(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 24.dp, top = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(dimensions.buttonSpacing)
         ) {
             PrimaryActionButton(
                 onClick = onAddNewTask,
-                modifier = Modifier.fillMaxWidth(0.85f)
+                modifier = Modifier.fillMaxWidth(dimensions.buttonWidthFraction)
             )
 
             SecondaryActionButton(onClick = onAddSampleTasks)
-            Attribution(topPadding = 16.dp)
+            Attribution()
         }
     }
 }

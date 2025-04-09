@@ -4,6 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import `in`.xroden.retask.data.model.Task
 
+/**
+ * Dialog for editing an existing task.
+ *
+ * @param task The task to be edited.
+ * @param onDismiss Callback invoked when the dialog is dismissed.
+ * @param onUpdateTask Callback invoked when a task is updated with (task, title, dueMinutes, colorHex).
+ */
 @Composable
 fun EditTaskDialog(
     task: Task,
