@@ -6,22 +6,32 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
 /**
- * Utility functions for time-related operations
+ * A utility object for performing common time-related operations, such as
+ * formatting durations, calculating timestamps, and converting between time units.
  */
 object TimeUtils {
+
+    private const val ONE_MINUTE_IN_MILLIS = 60000L
+
     /**
-     * Formats time based on duration in minutes
+     * Formats a duration in minutes into a human-readable string.
+     *
+     * @param minutes The duration in minutes.
+     * @return A formatted string representing the duration in hours and minutes.
      */
     fun formatTimeFromMinutes(minutes: Int): String {
         return when {
-            minutes < 60 -> "$minutes minutes"
-            minutes % 60 == 0 -> "${minutes / 60} hour${if (minutes > 60) "s" else ""}"
-            else -> "${minutes / 60} hour${if (minutes > 60) "s" else ""} ${minutes % 60} minute${if (minutes % 60 > 1) "s" else ""}"
+            minutes < 60 -> "$minutes minute${if (minutes != 1) "s" else ""}"
+            minutes % 60 == 0 -> "${minutes / 60} hour${if (minutes / 60 > 1) "s" else ""}"
+            else -> "${minutes / 60} hour${if (minutes / 60 > 1) "s" else ""} ${minutes % 60} minute${if (minutes % 60 != 1) "s" else ""}"
         }
     }
 
     /**
-     * Calculate minutes between now and a future timestamp
+     * Calculates the number of minutes remaining between the current time and a future timestamp.
+     *
+     * @param timestamp A future timestamp in milliseconds.
+     * @return The number of minutes remaining, with a minimum of 1 minute.
      */
     fun calculateMinutesFromTimestamp(timestamp: Long): Int {
         val currentTime = System.currentTimeMillis()
@@ -30,14 +40,20 @@ object TimeUtils {
     }
 
     /**
-     * Get future timestamp from current time plus minutes
+     * Calculates a future timestamp by adding a specified number of minutes to the current time.
+     *
+     * @param minutesFromNow The number of minutes to add to the current time.
+     * @return A future timestamp in milliseconds.
      */
     fun getFutureTimestamp(minutesFromNow: Int): Long {
-        return System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(minutesFromNow.toLong())
+        return System.currentTimeMillis() + (minutesFromNow * ONE_MINUTE_IN_MILLIS)
     }
 
     /**
-     * Format timestamp as readable date and time
+     * Formats a timestamp into a human-readable date and time string.
+     *
+     * @param timestamp The timestamp in milliseconds to format.
+     * @return A string formatted as "Day, Month Date, Year at Hour:Minute AM/PM".
      */
     fun formatDateTime(timestamp: Long): String {
         val dateFormat = SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault())

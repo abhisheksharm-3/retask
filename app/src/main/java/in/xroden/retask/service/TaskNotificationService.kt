@@ -16,24 +16,57 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
+/**
+ * A foreground service that manages task notifications by observing upcoming tasks
+ * and scheduling notifications for tasks that are due soon.
+ */
 class TaskNotificationService : Service() {
+
+    // Coroutine job and scope for managing service tasks
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
+    // Repository for accessing task data
     private lateinit var taskRepository: TaskRepository
+
+    // Job for observing upcoming tasks
     private var upcomingTasksJob: Job? = null
 
+    /**
+     * Called when the service is created. Initializes the notification system,
+     * task repository, and starts observing tasks.
+     */
     override fun onCreate() {
         super.onCreate()
 
-        // Create notification channels
+        // Setup notification channels
         NotificationHelper.createNotificationChannels(this)
 
-        // Initialize repository with dao from database
-        val taskDao = TaskDatabase.getDatabase(application).taskDao()
-        taskRepository = TaskRepository(taskDao)
+        // Initialize the task repository using the database
+        taskRepository = initializeTaskRepository()
 
-        // Create and show initial empty notification to start foreground service
+        // Start the service in the foreground with an initial persistent notification
+        startForegroundWithInitialNotification()
+
+        // Observe upcoming tasks in real-time
+        observeUpcomingTasks()
+
+        // Start a periodic task to refresh data and notifications
+        startPeriodicCheck()
+    }
+
+    /**
+     * Initializes the TaskRepository using the application's database.
+     */
+    private fun initializeTaskRepository(): TaskRepository {
+        val taskDao = TaskDatabase.getDatabase(application).taskDao()
+        return TaskRepository(taskDao)
+    }
+
+    /**
+     * Starts the service in the foreground with an initial persistent notification.
+     */
+    private fun startForegroundWithInitialNotification() {
         val initialNotification = NotificationHelper.buildPersistentNotification(
             context = this,
             upcomingTasks = emptyList()
@@ -43,42 +76,35 @@ class TaskNotificationService : Service() {
             NotificationHelper.NOTIFICATION_ID_PERSISTENT,
             initialNotification.build()
         )
-
-        // Initialize task observer
-        observeUpcomingTasks()
-
-        // Start periodic check for upcoming tasks to update notifications
-        startPeriodicCheck()
     }
 
+    /**
+     * Observes upcoming tasks and updates persistent notifications and task-specific notifications.
+     */
     private fun observeUpcomingTasks() {
-        // Get tasks due in the next 24 hours
         val currentTime = System.currentTimeMillis()
         val in24Hours = currentTime + TimeUnit.HOURS.toMillis(24)
 
-        // Cancel any existing collection job
+        // Cancel any existing job to avoid duplicate observers
         upcomingTasksJob?.cancel()
 
-        // Create a new job to collect flow
+        // Launch a new coroutine to observe task flow
         upcomingTasksJob = serviceScope.launch {
             val upcomingTasksFlow: Flow<List<Task>> = taskRepository.getTasksDueBetween(currentTime, in24Hours)
 
-            // Collect flow and process tasks
+            // Collect and process the task flow
             upcomingTasksFlow.collectLatest { tasks ->
-                // Update the persistent notification with these tasks
                 updatePersistentNotification(tasks)
-
-                // Schedule individual notifications for tasks due soon (next 30 minutes)
-                val soonDueTasks = tasks.filter {
-                    it.dueDate > currentTime &&
-                            it.dueDate <= currentTime + TimeUnit.MINUTES.toMillis(30)
-                }
-
-                scheduleTaskNotifications(soonDueTasks)
+                scheduleTaskNotifications(tasks.filterDueSoon(currentTime))
             }
         }
     }
 
+    /**
+     * Updates the persistent notification with the list of upcoming tasks.
+     *
+     * @param tasks List of tasks to display in the notification.
+     */
     private fun updatePersistentNotification(tasks: List<Task>) {
         val sortedTasks = tasks.sortedBy { it.dueDate }
 
@@ -94,15 +120,18 @@ class TaskNotificationService : Service() {
         )
     }
 
+    /**
+     * Schedules notifications for tasks that are due soon (within 30 minutes).
+     *
+     * @param tasks List of tasks to schedule notifications for.
+     */
     private fun scheduleTaskNotifications(tasks: List<Task>) {
-        // For each task, schedule a notification if it's due soon
         tasks.forEach { task ->
             val timeUntilDue = task.dueDate - System.currentTimeMillis()
 
-            // If due in less than 30 minutes, show notification
+            // Launch a coroutine to delay and schedule the notification
             if (timeUntilDue in 1..TimeUnit.MINUTES.toMillis(30)) {
                 serviceScope.launch {
-                    // Schedule notification for this task
                     delay(maxOf(0, timeUntilDue - TimeUnit.MINUTES.toMillis(10)))
 
                     val notification = NotificationHelper.buildTaskNotification(
@@ -121,28 +150,49 @@ class TaskNotificationService : Service() {
         }
     }
 
+    /**
+     * Starts a periodic task to refresh data and re-observe tasks every 15 minutes.
+     */
     private fun startPeriodicCheck() {
         serviceScope.launch {
             while (true) {
-                // Refresh data every 15 minutes
                 delay(TimeUnit.MINUTES.toMillis(15))
-
-                // Force refresh by re-observing
                 observeUpcomingTasks()
             }
         }
     }
 
+    /**
+     * Handles the service's start command. Ensures service restarts if killed.
+     */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Restart service if it gets killed
         return START_STICKY
     }
 
+    /**
+     * Handles binding requests (not used as this is a background service).
+     */
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * Handles service destruction. Cleans up jobs and resources.
+     */
     override fun onDestroy() {
         upcomingTasksJob?.cancel()
         serviceJob.cancel()
         super.onDestroy()
+    }
+
+    /**
+     * Filters tasks that are due within the next 30 minutes.
+     *
+     * @param currentTime The current system time in milliseconds.
+     * @return List of tasks due soon.
+     */
+    private fun List<Task>.filterDueSoon(currentTime: Long): List<Task> {
+        return this.filter {
+            it.dueDate > currentTime &&
+                    it.dueDate <= currentTime + TimeUnit.MINUTES.toMillis(30)
+        }
     }
 }
