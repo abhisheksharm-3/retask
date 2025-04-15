@@ -14,6 +14,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -135,7 +136,7 @@ fun TaskDrawer(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Enhanced task counter pill
+                // Enhanced task counter pill with subtle shadow
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -223,7 +224,7 @@ fun TaskDrawer(
                             items = tasksInGroup,
                             key = { it.id }
                         ) { task ->
-                            TaskListItem(
+                            EnhancedTaskListItem(
                                 task = task,
                                 isSelected = selectedTask?.id == task.id,
                                 onClick = {
@@ -325,8 +326,11 @@ fun DateGroupHeader(
     }
 }
 
+/**
+ * Enhanced version of TaskListItem with improved UI but same business logic
+ */
 @Composable
-fun TaskListItem(
+fun EnhancedTaskListItem(
     modifier: Modifier = Modifier,
     task: Task,
     isSelected: Boolean = false,
@@ -381,6 +385,9 @@ fun TaskListItem(
     }
     val taskDescription = "Task: ${task.title}, due ${task.getDueText()}$urgencyText"
 
+    // Use interaction source for ripple control
+    val interactionSource = remember { MutableInteractionSource() }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -397,7 +404,10 @@ fun TaskListItem(
                 color = if (isSelected) indicatorColor else Color.Transparent,
                 shape = RoundedCornerShape(18.dp)
             )
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
             .semantics { contentDescription = taskDescription },
         color = backgroundColor,
         shape = RoundedCornerShape(18.dp),
@@ -413,7 +423,7 @@ fun TaskListItem(
             val indicatorWidth by animateFloatAsState(
                 targetValue = when {
                     isSelected -> 6f
-                    isUrgent -> 5f
+                    isUrgent || isOverdue -> 5f
                     else -> 4f
                 },
                 animationSpec = tween(durationMillis = 200),
@@ -486,17 +496,21 @@ fun TaskListItem(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Enhanced due time with better styling based on urgency
+                val dueTextStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = if (isOverdue || isUrgent) FontWeight.Medium else FontWeight.Normal,
+                    letterSpacing = 0.1.sp
+                )
+
+                val dueTextColor = when {
+                    isOverdue -> MaterialTheme.colorScheme.error
+                    isUrgent -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
                 Text(
                     text = task.getDueText(),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = if (isOverdue || isUrgent) FontWeight.Medium else FontWeight.Normal,
-                        letterSpacing = 0.1.sp
-                    ),
-                    color = when {
-                        isOverdue -> MaterialTheme.colorScheme.error
-                        isUrgent -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    style = dueTextStyle,
+                    color = dueTextColor
                 )
             }
 
