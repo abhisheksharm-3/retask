@@ -692,9 +692,6 @@ private fun rememberTaskCardAnimations(
     return TaskCardAnimations(cardScale, cardElevation.dp)
 }
 
-/**
- * Animation values for the task card
- */
 private data class TaskCardAnimations(
     val cardScale: Float,
     val cardElevation: Dp
