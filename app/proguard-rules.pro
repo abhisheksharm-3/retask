@@ -10,11 +10,8 @@
 #================================================================================
 # This rule preserves debugging metadata for coroutines, which helps in analyzing
 # stack traces from crashes involving suspend functions.
--keep
--keepclassmembernames class kotlinx.coroutines.internal.MainDispatcherFactory {
-    private final java.lang.String errorMessage;
-}
-
+-keep class kotlinx.coroutines.** { *; }
+-dontwarn kotlinx.coroutines.**
 
 #================================================================================
 # Jetpack Compose
@@ -46,9 +43,9 @@
 # security certificates required to download fonts from Google Fonts.
 # NOTE: The IDE may show a "matches no class members" warning on the rule below.
 # This is a known issue and a false positive. This rule is necessary and must be kept.
--keep class com.google.android.gms.fonts.**
--keep class in.xroden.retask.R$array {
-    public static final int com_google_android_gms_fonts_certs;
+-keep class com.google.android.gms.fonts.** { *; }
+-keep class **.R$array {
+    int com_google_android_gms_fonts_certs;
 }
 
 #================================================================================
