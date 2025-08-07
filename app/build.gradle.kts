@@ -13,8 +13,8 @@ android {
         applicationId = "in.xroden.retask"
         minSdk = 34
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.5.1"
+        versionCode = 9
+        versionName = "1.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
