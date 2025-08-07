@@ -27,7 +27,7 @@ interface TaskDao {
      * @param task The Task object to be inserted or updated.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTask(task: Task)
+    suspend fun insertTask(task: Task): Long
 
     /**
      * Updates an existing task in the database.

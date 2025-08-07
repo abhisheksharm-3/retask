@@ -6,36 +6,29 @@ import android.content.Intent
 import `in`.xroden.retask.service.TaskNotificationService
 
 /**
- * Broadcast receiver that listens for the device boot completion event.
+ * Listens for the device boot completion event to ensure services are rescheduled.
  *
- * This receiver automatically restarts the [TaskNotificationService] when the device
- * completes booting, ensuring that task notifications continue to function properly
- * after device restarts without requiring user intervention.
+ * This receiver starts the [TaskNotificationService] after the device reboots. This is
+ * crucial for re-registering alarms or notifications that do not persist across restarts.
  *
- * Note: This receiver must be registered in the AndroidManifest.xml with the
- * RECEIVE_BOOT_COMPLETED permission and an intent-filter for ACTION_BOOT_COMPLETED.
+ * **Manifest Requirement:** This receiver must be registered in the `AndroidManifest.xml`
+ * with the `RECEIVE_BOOT_COMPLETED` permission and an intent-filter for the
+ * `android.intent.action.BOOT_COMPLETED` action.
  */
 class BootCompletedReceiver : BroadcastReceiver() {
 
     /**
-     * Called when the BroadcastReceiver receives an Intent broadcast.
+     * This method is called when the BroadcastReceiver is receiving an Intent broadcast.
+     * It checks if the device has finished booting and starts the notification service if it has.
      *
      * @param context The Context in which the receiver is running.
-     * @param intent The Intent being received.
+     * @param intent The Intent being received, which should contain the boot action.
      */
     override fun onReceive(context: Context, intent: Intent) {
+        // We only care about the boot completed event.
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            startTaskNotificationService(context)
+            val serviceIntent = Intent(context, TaskNotificationService::class.java)
+            context.startForegroundService(serviceIntent)
         }
-    }
-
-    /**
-     * Starts the TaskNotificationService.
-     *
-     * @param context The context used to start the service.
-     */
-    private fun startTaskNotificationService(context: Context) {
-        val serviceIntent = Intent(context, TaskNotificationService::class.java)
-        context.startForegroundService(serviceIntent)
     }
 }

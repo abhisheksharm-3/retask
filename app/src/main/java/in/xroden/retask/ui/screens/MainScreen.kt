@@ -1,49 +1,60 @@
 package `in`.xroden.retask.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import `in`.xroden.retask.data.model.Task
-import `in`.xroden.retask.ui.components.AddTaskDialog
-import `in`.xroden.retask.ui.components.EditTaskDialog
-import `in`.xroden.retask.ui.components.NoTasks
 import `in`.xroden.retask.ui.components.TaskCard
 import `in`.xroden.retask.ui.components.TaskDrawer
+import `in`.xroden.retask.ui.components.TaskFormDialog
 import `in`.xroden.retask.ui.viewmodel.TaskViewModel
+import `in`.xroden.retask.ui.components.NoTasks
 
+/**
+ * The main screen of the application, responsible for displaying tasks and handling user interactions.
+ *
+ * This screen displays an empty state if no tasks are present. Otherwise, it uses a
+ * [BottomSheetScaffold] to show a primary [TaskCard] for the selected task and a
+ * [TaskDrawer] containing the list of all tasks.
+ *
+ * @param viewModel The [TaskViewModel] that provides state and handles business logic.
+ */
+@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: TaskViewModel,
     modifier: Modifier = Modifier
 ) {
+    // Collect state from the ViewModel in a lifecycle-aware manner.
     val tasks by viewModel.allTasks.collectAsStateWithLifecycle()
+    val groupedTasks by viewModel.groupedTasks.collectAsStateWithLifecycle()
 
-    // Add dialog state
-    var showAddTaskDialog by remember { mutableStateOf(false) }
-    var showEditTaskDialog by remember { mutableStateOf(false) }
+    // Local UI state for managing which task is selected and which dialogs are visible.
+    var selectedTask by remember { mutableStateOf<Task?>(null) }
     var taskToEdit by remember { mutableStateOf<Task?>(null) }
+    var showAddTaskDialog by remember { mutableStateOf(false) }
 
-    // If tasks are empty, show the improved empty state UI
+    // This effect ensures the selected task is stable across data changes.
+    // It only resets the selection if the current task is deleted or on initial load.
+    LaunchedEffect(tasks) {
+        val sortedTasks = tasks.sortedBy { it.dueDate }
+        if (selectedTask == null || tasks.none { it.id == selectedTask?.id }) {
+            selectedTask = sortedTasks.firstOrNull()
+        }
+    }
+
+    // Main UI router: show empty state or the task scaffold.
     if (tasks.isEmpty()) {
         NoTasks(
             onAddSampleTasks = { viewModel.addSampleTasks() },
@@ -51,58 +62,38 @@ fun MainScreen(
             modifier = modifier.fillMaxSize()
         )
     } else {
-        // Sort tasks by due date to show the most urgent one first
-        val sortedTasks = remember(tasks) {
-            tasks.sortedBy { it.dueDate }
-        }
+        val scaffoldState = rememberBottomSheetScaffoldState()
 
-        // Current task is the first one (most urgent)
-        val currentTask = sortedTasks.firstOrNull() ?: return
-
-        // Other tasks for the drawer
-        val otherTasks = sortedTasks
-
-        // State for bottom sheet
-        val sheetState = rememberBottomSheetScaffoldState()
-        var selectedTask by remember { mutableStateOf(currentTask) }
-
-        // If the selected task is no longer in the list, reset to the first task
-        LaunchedEffect(tasks) {
-            if (!tasks.contains(selectedTask)) {
-                selectedTask = tasks.firstOrNull() ?: return@LaunchedEffect
-            }
-        }
-
-        // Correctly using Box and BottomSheetScaffold
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = modifier.fillMaxSize()) {
             BottomSheetScaffold(
-                scaffoldState = sheetState,
+                scaffoldState = scaffoldState,
                 sheetContent = {
                     TaskDrawer(
-                        tasks = otherTasks,
+                        groupedTasks = groupedTasks,
+                        totalTasksCount = tasks.size,
                         selectedTask = selectedTask,
-                        onTaskClick = { task ->
-                            selectedTask = task
-                        },
-                        modifier = Modifier.fillMaxWidth()
+                        onTaskClick = { clickedTask ->
+                            selectedTask = clickedTask
+                        }
                     )
                 },
-                sheetPeekHeight = 72.dp
+                sheetPeekHeight = 80.dp,
+                sheetShape = MaterialTheme.shapes.extraLarge
             ) { paddingValues ->
-                TaskCard(
-                    task = selectedTask,
-                    totalTasks = tasks.size,
-                    onCompleteClick = { viewModel.completeTask(selectedTask) },
-                    onSnoozeClick = { viewModel.snoozeTask(selectedTask) },
-                    modifier = Modifier.padding(paddingValues),
-                    onEditClick = {
-                        taskToEdit = selectedTask
-                        showEditTaskDialog = true
-                    }
-                )
+                // Only show the TaskCard if a task is actually selected.
+                selectedTask?.let { task ->
+                    TaskCard(
+                        task = task,
+                        totalTasks = tasks.size,
+                        onCompleteClick = { viewModel.completeTask(task) },
+                        onSnoozeClick = { viewModel.snoozeTask(task) },
+                        onEditClick = { taskToEdit = task },
+                        modifier = Modifier.padding(paddingValues)
+                    )
+                }
             }
 
-            // FloatingActionButton positioned in the Box
+            // FAB for adding new tasks.
             FloatingActionButton(
                 onClick = { showAddTaskDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -110,35 +101,35 @@ fun MainScreen(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Task"
-                )
+                Icon(Icons.Rounded.Add, contentDescription = "Add Task")
             }
         }
     }
 
+    // --- Dialogs ---
+
     if (showAddTaskDialog) {
-        AddTaskDialog(
+        TaskFormDialog(
+            dialogTitle = "Create New Task",
+            submitButtonText = "Create Task",
             onDismiss = { showAddTaskDialog = false },
-            onAddTask = { title, dueMinutes, colorHex ->
+            onSubmit = { title, dueMinutes, colorHex ->
                 viewModel.addTask(title, dueMinutes, colorHex)
                 showAddTaskDialog = false
             }
         )
     }
 
-    // Edit task dialog
-    if (showEditTaskDialog && taskToEdit != null) {
-        EditTaskDialog(
-            task = taskToEdit!!,
-            onDismiss = {
-                showEditTaskDialog = false
-                taskToEdit = null
-            },
-            onUpdateTask = { task, title, dueMinutes, colorHex ->
+    taskToEdit?.let { task ->
+        TaskFormDialog(
+            dialogTitle = "Edit Task",
+            submitButtonText = "Save Changes",
+            initialTitle = task.title,
+            initialDueMinutes = ((task.dueDate - System.currentTimeMillis()) / 60000).toInt().coerceAtLeast(1),
+            initialColor = task.colorHex,
+            onDismiss = { taskToEdit = null },
+            onSubmit = { title, dueMinutes, colorHex ->
                 viewModel.editTask(task, title, dueMinutes, colorHex)
-                showEditTaskDialog = false
                 taskToEdit = null
             }
         )

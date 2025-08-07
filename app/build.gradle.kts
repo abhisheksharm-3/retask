@@ -7,21 +7,22 @@ plugins {
 
 android {
     namespace = "in.xroden.retask"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "in.xroden.retask"
-        minSdk = 29
-        targetSdk = 35
-        versionCode = 6
-        versionName = "1.4.2"
+        minSdk = 34
+        targetSdk = 36
+        versionCode = 7
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Enable minification and obfuscation for release builds.
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -29,14 +30,20 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Updated to the recommended Java 17 for modern Android builds.
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "11"
+        // Updated JVM target to match Java 17.
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
+    }
+    // Optional: Add composeOptions to enable compiler metrics for performance analysis.
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.1" // Match your Compose Compiler version
     }
 }
 

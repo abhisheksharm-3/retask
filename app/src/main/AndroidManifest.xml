@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <!-- Required for basic notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- Required for persistent foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- For scheduling exact notifications -->
